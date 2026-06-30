@@ -94,6 +94,19 @@ go test ./...
 `internal/server/server_test.go` drives the Authorization Code + PKCE, refresh and client
 credentials flows end-to-end against an in-process instance.
 
+## CI / Release
+
+- **CI** (`.github/workflows/ci.yml`) runs `gofmt`, `go build`, `go vet`, `go test` and a
+  Docker build on every push / PR to `main` / `master`.
+- **Release** (`.github/workflows/release.yml`) publishes a multi-arch (amd64/arm64) image to
+  GHCR on a `v*` tag:
+
+  ```bash
+  git tag v1.0.0 && git push origin v1.0.0
+  # → ghcr.io/scottbass3/oidc-test-idp:1.0.0
+  docker run -p 9000:9000 ghcr.io/scottbass3/oidc-test-idp:1.0.0
+  ```
+
 ## Architecture
 
 | Package             | Responsibility                                                        |
