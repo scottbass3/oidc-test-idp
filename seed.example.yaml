@@ -57,6 +57,14 @@ clients:
     auth_method: client_secret_basic
     grant_types: ["urn:ietf:params:oauth:grant-type:device_code"]
 
+  # Resource Owner Password Credentials (legacy). Passwordless: any password is
+  # accepted as long as the username resolves to a seeded user.
+  - id: ropc-app
+    secret: ropc-secret
+    auth_method: client_secret_basic
+    grant_types: [password, refresh_token]
+    access_token_type: jwt
+
   # private_key_jwt client authentication: register the client's PUBLIC JWKS.
   # The client signs token-request assertions; the IdP validates them by `kid`.
   - id: pkjwt-app

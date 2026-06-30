@@ -206,6 +206,13 @@ func defaultSeed() *File {
 				AuthMethod: string(oidc.AuthMethodBasic),
 				GrantTypes: []string{string(oidc.GrantTypeDeviceCode)},
 			},
+			{
+				ID:              "ropc-app",
+				Secret:          "ropc-secret",
+				AuthMethod:      string(oidc.AuthMethodBasic),
+				GrantTypes:      []string{"password", "refresh_token"},
+				AccessTokenType: "jwt",
+			},
 		},
 	}
 }

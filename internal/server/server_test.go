@@ -329,6 +329,46 @@ func TestPrivateKeyJWTClientAuth(t *testing.T) {
 	}
 }
 
+func TestROPCFlow(t *testing.T) {
+	issuer := startIDP(t)
+
+	// Happy path: password grant returns full token set.
+	tok := postFormAuth(t, issuer+"/oauth/token", "ropc-app", "ropc-secret", url.Values{
+		"grant_type": {"password"},
+		"username":   {"alice"},
+		"password":   {"ignored-by-test-idp"},
+		"scope":      {"openid profile offline_access"},
+	})
+	for _, k := range []string{"access_token", "id_token", "refresh_token"} {
+		if _, ok := tok[k]; !ok {
+			t.Fatalf("ROPC response missing %q: %v", k, tok)
+		}
+	}
+
+	// The ROPC-issued refresh token works.
+	rt, _ := tok["refresh_token"].(string)
+	refreshed := postFormAuth(t, issuer+"/oauth/token", "ropc-app", "ropc-secret", url.Values{
+		"grant_type": {"refresh_token"}, "refresh_token": {rt},
+	})
+	if _, ok := refreshed["access_token"]; !ok {
+		t.Fatalf("refresh after ROPC failed: %v", refreshed)
+	}
+
+	// Negative: unknown user.
+	if status := postStatus(t, issuer+"/oauth/token", "ropc-app", "ropc-secret", url.Values{
+		"grant_type": {"password"}, "username": {"ghost"}, "password": {"x"}, "scope": {"openid"},
+	}); status != http.StatusBadRequest {
+		t.Fatalf("unknown user: expected 400, got %d", status)
+	}
+
+	// Negative: client without the password grant.
+	if status := postStatus(t, issuer+"/oauth/token", "service-app", "service-secret", url.Values{
+		"grant_type": {"password"}, "username": {"alice"}, "password": {"x"}, "scope": {"openid"},
+	}); status != http.StatusBadRequest {
+		t.Fatalf("client without password grant: expected 400, got %d", status)
+	}
+}
+
 func TestImplicitAndHybridFlow(t *testing.T) {
 	issuer, store := startIDPWithStore(t)
 	const redirect = "http://localhost:3000/cb"
@@ -563,6 +603,19 @@ func postFormAuth(t *testing.T, u, user, pass string, form url.Values) map[strin
 	var out map[string]any
 	_ = json.Unmarshal(body, &out)
 	return out
+}
+
+func postStatus(t *testing.T, u, user, pass string, form url.Values) int {
+	t.Helper()
+	req, _ := http.NewRequest("POST", u, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(user, pass)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	return resp.StatusCode
 }
 
 func mustQuery(t *testing.T, rawURL, key string) string {

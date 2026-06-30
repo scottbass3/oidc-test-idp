@@ -3,6 +3,7 @@ package storage
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"golang.org/x/text/language"
 
 	"github.com/zitadel/oidc/v3/pkg/oidc"
@@ -112,6 +113,22 @@ func authRequestToInternal(req *oidc.AuthRequest, userID string) *AuthRequest {
 		ResponseMode:  req.ResponseMode,
 		Nonce:         req.Nonce,
 		CodeChallenge: cc,
+	}
+}
+
+// NewAuthenticatedRequest builds an already-authenticated AuthRequest for grants
+// that bypass the browser login (e.g. Resource Owner Password Credentials).
+func NewAuthenticatedRequest(clientID, userID string, scopes []string) *AuthRequest {
+	now := time.Now()
+	return &AuthRequest{
+		ID:            uuid.NewString(),
+		CreationDate:  now,
+		ApplicationID: clientID,
+		UserID:        userID,
+		Scopes:        scopes,
+		ResponseType:  oidc.ResponseTypeCode,
+		done:          true,
+		authTime:      now,
 	}
 }
 

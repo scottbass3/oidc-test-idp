@@ -7,7 +7,8 @@ dependency. Authentication is passwordless: pick an account from a list and clic
 - **One container, no dependencies** — a static, cgo-free binary plus an embedded SQLite
   database. Configuration persists inside the container (mount a volume to keep it).
 - **OIDC and plain OAuth2** — supports Authorization Code + PKCE, Refresh Token, Client
-  Credentials, Device Code, Implicit/Hybrid and the introspection / revocation / end-session
+  Credentials, Device Code, Implicit/Hybrid, the legacy Resource Owner Password Credentials
+  grant (`grant_type=password`, passwordless) and the introspection / revocation / end-session
   endpoints. Client authentication via `client_secret_basic`, `client_secret_post`, `none`
   (PKCE) and `private_key_jwt` (register the client's public JWKS).
 - **Mock real-IdP behavior** — per-client token format (opaque vs JWT), token lifetimes,
@@ -93,7 +94,7 @@ credentials flows end-to-end against an in-process instance.
 | Package             | Responsibility                                                        |
 | ------------------- | --------------------------------------------------------------------- |
 | `internal/storage`  | SQLite persistence + implementation of the zitadel/oidc `op.Storage`. |
-| `internal/oidc`     | Wires the `op.OpenIDProvider` (flows, PKCE, device, crypto key).      |
+| `internal/oidc`     | Wires the `op.OpenIDProvider`; adds the ROPC (`password`) grant.      |
 | `internal/auth`     | Passwordless account-selection, consent and device verification UI.   |
 | `internal/admin`    | Server-rendered admin UI (users, clients, settings).                  |
 | `internal/behavior` | Per-client mock behavior + live discovery-override middleware.        |

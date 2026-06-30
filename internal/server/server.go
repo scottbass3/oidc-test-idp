@@ -65,9 +65,14 @@ func New(store *storage.Storage, logger *slog.Logger, opts Options) (http.Handle
 	// Administration UI.
 	router.Route("/admin", adminHandler.Routes)
 
-	// OIDC protocol endpoints, wrapped with the request log, the mock behavior
-	// middleware (latency / forced errors) and the live discovery-override middleware.
-	protocol := rlog.Middleware(behavior.DiscoveryOverride(store)(behavior.Middleware(store)(http.Handler(provider))))
+	// OIDC protocol endpoints. Middleware order (outermost first): request log →
+	// discovery overrides → mock behavior → ROPC interceptor (grant_type=password,
+	// not implemented by zitadel) → the OP handler.
+	protocol := rlog.Middleware(
+		behavior.DiscoveryOverride(store)(
+			behavior.Middleware(store)(
+				idpoidc.ROPCMiddleware(provider, store)(
+					http.Handler(provider)))))
 	router.Mount("/", protocol)
 
 	return router, nil
