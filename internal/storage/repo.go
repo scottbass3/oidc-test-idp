@@ -17,7 +17,8 @@ const clientColumns = `id, secret, redirect_uris, post_logout_redirect_uris, app
 	auth_method, response_types, grant_types, access_token_type, dev_mode,
 	id_token_userinfo_claims_assertion, clock_skew_seconds, access_token_lifetime_seconds,
 	id_token_lifetime_seconds, refresh_token_lifetime_seconds, redirect_uri_globs,
-	post_logout_redirect_uri_globs, require_consent, custom_claims, force_error, latency_ms, jwks`
+	post_logout_redirect_uri_globs, require_consent, custom_claims, force_error, latency_ms, jwks,
+	id_token_sign_alg`
 
 func scanClient(row interface{ Scan(...any) error }) (*Client, error) {
 	var (
@@ -26,17 +27,19 @@ func scanClient(row interface{ Scan(...any) error }) (*Client, error) {
 		redirectGlobs, postLogoutGlobs, customClaims               string
 		appType, accessTokenType, devMode, idTokenAssert           int
 		clockSkew, atLife, idLife, rtLife, requireConsent, latency int
-		authMethod, forceError, jwks                               string
+		authMethod, forceError, jwks, idTokenSignAlg               string
 	)
 	if err := row.Scan(
 		&c.ID, &c.Secret, &redirectURIs, &postLogout, &appType,
 		&authMethod, &responseTypes, &grantTypes, &accessTokenType, &devMode,
 		&idTokenAssert, &clockSkew, &atLife, &idLife, &rtLife, &redirectGlobs,
 		&postLogoutGlobs, &requireConsent, &customClaims, &forceError, &latency, &jwks,
+		&idTokenSignAlg,
 	); err != nil {
 		return nil, err
 	}
 	c.JWKS = jwks
+	c.IDTokenSignAlg = idTokenSignAlg
 	c.RedirectURIList = jsonStrings(redirectURIs)
 	c.PostLogoutRedirectURIList = jsonStrings(postLogout)
 	c.RedirectURIGlobList = jsonStrings(redirectGlobs)
@@ -103,7 +106,7 @@ func (db *DB) SaveClient(c *Client) error {
 	}
 	_, err := db.conn.Exec(`
 		INSERT INTO clients (`+clientColumns+`, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
 		ON CONFLICT(id) DO UPDATE SET
 			secret=excluded.secret, redirect_uris=excluded.redirect_uris,
 			post_logout_redirect_uris=excluded.post_logout_redirect_uris,
@@ -119,6 +122,7 @@ func (db *DB) SaveClient(c *Client) error {
 			post_logout_redirect_uri_globs=excluded.post_logout_redirect_uri_globs,
 			require_consent=excluded.require_consent, custom_claims=excluded.custom_claims,
 			force_error=excluded.force_error, latency_ms=excluded.latency_ms, jwks=excluded.jwks,
+			id_token_sign_alg=excluded.id_token_sign_alg,
 			updated_at=datetime('now')`,
 		c.ID, c.Secret, jsonMarshal(c.RedirectURIList), jsonMarshal(c.PostLogoutRedirectURIList),
 		int(c.AppType), string(c.AuthMethodValue), jsonMarshal(responseTypes), jsonMarshal(grantTypes),
@@ -127,7 +131,7 @@ func (db *DB) SaveClient(c *Client) error {
 		int(c.IDTokenLifetimeDuration.Seconds()), int(c.RefreshTokenLifetime.Seconds()),
 		jsonMarshal(c.RedirectURIGlobList), jsonMarshal(c.PostLogoutRedirectGlobList),
 		boolInt(c.RequireConsent), jsonMarshal(c.CustomClaims), c.ForceError, c.LatencyMS,
-		orJSONEmpty(c.JWKS),
+		orJSONEmpty(c.JWKS), c.IDTokenSignAlg,
 	)
 	return err
 }
@@ -141,17 +145,18 @@ func (db *DB) DeleteClient(id string) error {
 // --- Users ----------------------------------------------------------------
 
 const userColumns = `id, username, email, email_verified, phone, phone_verified,
-	first_name, last_name, preferred_language, is_admin, claims, conditional_claims`
+	first_name, last_name, preferred_language, is_admin, claims, conditional_claims, acr, amr`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	var (
 		u                            User
 		emailVerified, phoneVerified int
 		isAdmin                      int
-		claims, conditional          string
+		claims, conditional, amr     string
 	)
 	if err := row.Scan(&u.ID, &u.Username, &u.Email, &emailVerified, &u.Phone,
-		&phoneVerified, &u.FirstName, &u.LastName, &u.PreferredLanguage, &isAdmin, &claims, &conditional); err != nil {
+		&phoneVerified, &u.FirstName, &u.LastName, &u.PreferredLanguage, &isAdmin, &claims, &conditional,
+		&u.ACR, &amr); err != nil {
 		return nil, err
 	}
 	u.EmailVerified = emailVerified != 0
@@ -159,6 +164,7 @@ func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	u.IsAdmin = isAdmin != 0
 	u.Claims = jsonObject(claims)
 	_ = json.Unmarshal([]byte(conditional), &u.ConditionalClaims)
+	u.AMR = jsonStrings(amr)
 	return &u, nil
 }
 
@@ -208,16 +214,18 @@ func (db *DB) SaveUser(u *User) error {
 	}
 	_, err := db.conn.Exec(`
 		INSERT INTO users (`+userColumns+`, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
 		ON CONFLICT(id) DO UPDATE SET
 			username=excluded.username, email=excluded.email,
 			email_verified=excluded.email_verified, phone=excluded.phone,
 			phone_verified=excluded.phone_verified, first_name=excluded.first_name,
 			last_name=excluded.last_name, preferred_language=excluded.preferred_language,
 			is_admin=excluded.is_admin, claims=excluded.claims,
-			conditional_claims=excluded.conditional_claims, updated_at=datetime('now')`,
+			conditional_claims=excluded.conditional_claims, acr=excluded.acr, amr=excluded.amr,
+			updated_at=datetime('now')`,
 		u.ID, u.Username, u.Email, boolInt(u.EmailVerified), u.Phone, boolInt(u.PhoneVerified),
 		u.FirstName, u.LastName, u.PreferredLanguage, boolInt(u.IsAdmin), jsonMarshal(u.Claims), conditional,
+		u.ACR, jsonMarshal(u.AMR),
 	)
 	return err
 }

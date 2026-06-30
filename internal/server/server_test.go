@@ -397,6 +397,79 @@ func TestConditionalClaims(t *testing.T) {
 	}
 }
 
+func TestACRAMRAndAddressClaims(t *testing.T) {
+	issuer, store := startIDPWithStore(t)
+	// Give alice an address claim alongside her seeded acr/amr.
+	u, err := store.DB().GetUser("user-alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.Claims["address"] = map[string]any{"locality": "Lyon", "country": "FR"}
+	if err := store.DB().SaveUser(u); err != nil {
+		t.Fatal(err)
+	}
+
+	tok := codeFlow(t, issuer, "spa-app", "", "http://localhost:3000/callback", "openid profile address")
+	idClaims := decodeJWTPart(t, tok["id_token"].(string), 1)
+	if idClaims["acr"] != "urn:mace:incommon:iap:silver" {
+		t.Fatalf("expected seeded acr, got %v", idClaims["acr"])
+	}
+	amr, _ := idClaims["amr"].([]any)
+	if len(amr) != 2 || amr[0] != "pwd" || amr[1] != "mfa" {
+		t.Fatalf("expected amr [pwd mfa], got %v", idClaims["amr"])
+	}
+
+	at := tok["access_token"].(string)
+	ui := userinfoGet(t, issuer, at)
+	addr, ok := ui["address"].(map[string]any)
+	if !ok || addr["locality"] != "Lyon" {
+		t.Fatalf("expected address claim with locality Lyon, got %v", ui["address"])
+	}
+}
+
+func TestPerClientSigningAlg(t *testing.T) {
+	issuer, store := startIDPWithStore(t)
+	if err := store.DB().SaveClient(&storage.Client{
+		ID:                      "es256-app",
+		AuthMethodValue:         oidc.AuthMethodNone,
+		ResponseTypeList:        []oidc.ResponseType{oidc.ResponseTypeCode},
+		GrantTypeList:           []oidc.GrantType{oidc.GrantTypeCode},
+		AccessTokenTypeValue:    op.AccessTokenTypeJWT,
+		RedirectURIList:         []string{"http://localhost:3000/cb"},
+		IDTokenLifetimeDuration: time.Hour,
+		DevModeFlag:             true,
+		IDTokenSignAlg:          "ES256",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	tok := codeFlow(t, issuer, "es256-app", "", "http://localhost:3000/cb", "openid")
+	hdr := decodeJWTPart(t, tok["id_token"].(string), 0)
+	if hdr["alg"] != "ES256" {
+		t.Fatalf("expected id_token alg ES256, got %v", hdr["alg"])
+	}
+	// The ES256 key must also be published in JWKS for verification.
+	if c := jwksHasAlg(t, issuer, "ES256"); !c {
+		t.Fatal("ES256 key not present in JWKS")
+	}
+}
+
+func TestUserinfoWWWAuthenticate(t *testing.T) {
+	issuer := startIDP(t)
+	req, _ := http.NewRequest("GET", issuer+"/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer not-a-real-token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", resp.StatusCode)
+	}
+	if h := resp.Header.Get("WWW-Authenticate"); !strings.HasPrefix(h, "Bearer") {
+		t.Fatalf("expected Bearer WWW-Authenticate header, got %q", h)
+	}
+}
+
 func TestROPCFlow(t *testing.T) {
 	issuer := startIDP(t)
 
@@ -671,6 +744,83 @@ func postFormAuth(t *testing.T, u, user, pass string, form url.Values) map[strin
 	var out map[string]any
 	_ = json.Unmarshal(body, &out)
 	return out
+}
+
+// codeFlow runs a full Authorization Code + PKCE flow as user-alice and returns
+// the token response. Pass secret="" for public clients.
+func codeFlow(t *testing.T, issuer, clientID, secret, redirect, scope string) map[string]any {
+	t.Helper()
+	jar, _ := cookiejar.New(nil)
+	c := &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	v := "0123456789012345678901234567890123456789abc"
+	sum := sha256.Sum256([]byte(v))
+	authURL := issuer + "/authorize?" + url.Values{
+		"client_id": {clientID}, "redirect_uri": {redirect}, "response_type": {"code"},
+		"scope": {scope}, "state": {"s"}, "nonce": {"n"},
+		"code_challenge": {base64.RawURLEncoding.EncodeToString(sum[:])}, "code_challenge_method": {"S256"},
+	}.Encode()
+	loginLoc := mustRedirect(t, c, "GET", authURL, nil)
+	reqID := mustQuery(t, loginLoc, "authRequestID")
+	cbLoc := mustRedirect(t, c, "POST", issuer+"/login", url.Values{"authRequestID": {reqID}, "userID": {"user-alice"}})
+	appLoc := mustRedirect(t, c, "GET", abs(issuer, cbLoc), nil)
+	code := mustQuery(t, appLoc, "code")
+	form := url.Values{
+		"grant_type": {"authorization_code"}, "code": {code},
+		"redirect_uri": {redirect}, "client_id": {clientID}, "code_verifier": {v},
+	}
+	if secret != "" {
+		return postFormAuth(t, issuer+"/oauth/token", clientID, secret, form)
+	}
+	return postForm(t, issuer+"/oauth/token", form)
+}
+
+func userinfoGet(t *testing.T, issuer, accessToken string) map[string]any {
+	t.Helper()
+	req, _ := http.NewRequest("GET", issuer+"/userinfo", nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var ui map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&ui)
+	return ui
+}
+
+// decodeJWTPart decodes part 0 (header) or 1 (payload) of a JWT into a map.
+func decodeJWTPart(t *testing.T, token string, part int) map[string]any {
+	t.Helper()
+	segs := strings.Split(token, ".")
+	if len(segs) < 2 {
+		t.Fatalf("not a JWT: %q", token)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(segs[part])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	return m
+}
+
+func jwksHasAlg(t *testing.T, issuer, alg string) bool {
+	t.Helper()
+	resp, err := http.Get(issuer + "/keys")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var set jose.JSONWebKeySet
+	_ = json.NewDecoder(resp.Body).Decode(&set)
+	for _, k := range set.Keys {
+		if k.Algorithm == alg {
+			return true
+		}
+	}
+	return false
 }
 
 func postStatus(t *testing.T, u, user, pass string, form url.Values) int {

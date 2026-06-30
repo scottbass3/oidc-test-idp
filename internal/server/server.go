@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -66,20 +67,55 @@ func New(store *storage.Storage, logger *slog.Logger, opts Options) (http.Handle
 	router.Route("/admin", adminHandler.Routes)
 
 	// OIDC protocol endpoints. Middleware order (outermost first): request log →
-	// discovery overrides → mock behavior → ROPC interceptor (grant_type=password,
-	// not implemented by zitadel) → the OP handler.
+	// userinfo WWW-Authenticate → discovery overrides → mock behavior → per-client
+	// signing algorithm → ROPC interceptor (grant_type=password, not implemented by
+	// zitadel) → the OP handler.
 	protocol := rlog.Middleware(
-		behavior.DiscoveryOverride(store)(
-			behavior.Middleware(store)(
-				idpoidc.ROPCMiddleware(provider, store)(
-					http.Handler(provider)))))
+		userinfoChallenge(
+			behavior.DiscoveryOverride(store)(
+				behavior.Middleware(store)(
+					idpoidc.SigningAlgMiddleware(store)(
+						idpoidc.ROPCMiddleware(provider, store)(
+							http.Handler(provider)))))))
 	router.Mount("/", protocol)
 
 	return router, nil
 }
 
+// userinfoChallenge adds the RFC 6750 WWW-Authenticate header to 401 responses
+// on the userinfo endpoint (zitadel omits it).
+func userinfoChallenge(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/userinfo" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(&bearerChallengeWriter{ResponseWriter: w}, r)
+	})
+}
+
+type bearerChallengeWriter struct {
+	http.ResponseWriter
+	wrote bool
+}
+
+func (b *bearerChallengeWriter) WriteHeader(code int) {
+	if !b.wrote {
+		b.wrote = true
+		if code == http.StatusUnauthorized && b.Header().Get("WWW-Authenticate") == "" {
+			b.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+		}
+	}
+	b.ResponseWriter.WriteHeader(code)
+}
+
+func (b *bearerChallengeWriter) Write(p []byte) (int, error) {
+	b.wrote = true
+	return b.ResponseWriter.Write(p)
+}
+
 func signingKeyID(store *storage.Storage) string {
-	if k, err := store.SigningKey(nil); err == nil {
+	if k, err := store.SigningKey(context.Background()); err == nil {
 		return k.ID()
 	}
 	return ""

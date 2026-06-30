@@ -15,7 +15,10 @@ dependency. Authentication is passwordless: pick an account from a list and clic
   arbitrary custom claims, forced OAuth errors (spec-correct: redirect on authorize, JSON on
   token) and simulated latency. Live **discovery-document overrides** to match a target IdP.
 - **Configurable signing** — RS256 or ES256 signing keys; rotate live from the admin UI
-  (previous keys stay in JWKS so already-issued tokens keep validating).
+  (previous keys stay in JWKS so already-issued tokens keep validating). Pin a **per-client**
+  token signing algorithm when one client must match a specific target IdP.
+- **Per-user `acr` / `amr`** — assert authentication-context and methods-references claims in
+  id_tokens to mock step-up / MFA. Standard `address` claim supported via the `address` scope.
 - **Live admin UI** — manage users, clients, signing keys (view + rotate), discovery overrides,
   and a recent-requests log from a browser; changes take effect immediately.
 - **Seedable** — pre-populate users and clients from a YAML/JSON file on first boot.

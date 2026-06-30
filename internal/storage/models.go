@@ -36,6 +36,10 @@ type Client struct {
 
 	// JWKS is the client's public key set (raw JSON) for private_key_jwt auth.
 	JWKS string
+
+	// IDTokenSignAlg optionally pins this client's token signing algorithm
+	// (e.g. "RS256", "ES256"); empty uses the IdP default key.
+	IDTokenSignAlg string
 }
 
 // op.Client implementation -------------------------------------------------
@@ -104,6 +108,9 @@ type User struct {
 	IsAdmin           bool
 	Claims            map[string]any
 	ConditionalClaims []ConditionalClaimRule
+	// ACR/AMR asserted into id_tokens for this user (mock step-up / MFA).
+	ACR string
+	AMR []string
 }
 
 // ConditionalClaimRule contributes extra claims when the requesting client and/or

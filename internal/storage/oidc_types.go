@@ -29,14 +29,19 @@ type AuthRequest struct {
 	ResponseMode  oidc.ResponseMode  `json:"response_mode"`
 	Nonce         string             `json:"nonce"`
 	CodeChallenge *OIDCCodeChallenge `json:"code_challenge"`
+	ACRValue      string             `json:"acr"`
+	AMRValues     []string           `json:"amr"`
 
 	done     bool
 	authTime time.Time
 }
 
 func (a *AuthRequest) GetID() string  { return a.ID }
-func (a *AuthRequest) GetACR() string { return "" }
+func (a *AuthRequest) GetACR() string { return a.ACRValue }
 func (a *AuthRequest) GetAMR() []string {
+	if len(a.AMRValues) > 0 {
+		return a.AMRValues
+	}
 	if a.done {
 		return []string{"pwd"}
 	}
@@ -118,15 +123,17 @@ func authRequestToInternal(req *oidc.AuthRequest, userID string) *AuthRequest {
 
 // NewAuthenticatedRequest builds an already-authenticated AuthRequest for grants
 // that bypass the browser login (e.g. Resource Owner Password Credentials).
-func NewAuthenticatedRequest(clientID, userID string, scopes []string) *AuthRequest {
+func NewAuthenticatedRequest(clientID string, user *User, scopes []string) *AuthRequest {
 	now := time.Now()
 	return &AuthRequest{
 		ID:            uuid.NewString(),
 		CreationDate:  now,
 		ApplicationID: clientID,
-		UserID:        userID,
+		UserID:        user.ID,
 		Scopes:        scopes,
 		ResponseType:  oidc.ResponseTypeCode,
+		ACRValue:      user.ACR,
+		AMRValues:     user.AMR,
 		done:          true,
 		authTime:      now,
 	}

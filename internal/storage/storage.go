@@ -20,9 +20,28 @@ import (
 // Storage implements op.Storage (plus the optional ClientCredentials, Device and
 // CanSetUserinfoFromRequest interfaces) on top of the SQLite DB.
 type Storage struct {
-	db    *DB
-	keyMu sync.RWMutex
-	key   *signingKey // current (newest) signing key
+	db        *DB
+	keyMu     sync.RWMutex
+	key       *signingKey                             // current (newest) signing key
+	keysByAlg map[jose.SignatureAlgorithm]*signingKey // cache of one active key per alg
+}
+
+// signingAlgCtxKey carries a per-request preferred signing algorithm.
+type signingAlgCtxKey struct{}
+
+// WithSigningAlg returns a context requesting that tokens be signed with alg.
+func WithSigningAlg(ctx context.Context, alg jose.SignatureAlgorithm) context.Context {
+	return context.WithValue(ctx, signingAlgCtxKey{}, alg)
+}
+
+func signingAlgFromContext(ctx context.Context) jose.SignatureAlgorithm {
+	if ctx == nil {
+		return ""
+	}
+	if v, ok := ctx.Value(signingAlgCtxKey{}).(jose.SignatureAlgorithm); ok {
+		return v
+	}
+	return ""
 }
 
 // Compile-time interface checks.
@@ -39,7 +58,11 @@ func NewStorage(db *DB) (*Storage, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Storage{db: db, key: key}, nil
+	return &Storage{
+		db:        db,
+		key:       key,
+		keysByAlg: map[jose.SignatureAlgorithm]*signingKey{key.algorithm: key},
+	}, nil
 }
 
 // DB exposes the underlying database for the admin/seed layers.
@@ -142,6 +165,11 @@ func (s *Storage) CompleteAuthRequest(id, userID string) error {
 	req.UserID = userID
 	req.done = true
 	req.authTime = time.Now()
+	// Stamp the selected user's ACR/AMR so they land in the id_token.
+	if u, uerr := s.db.GetUser(userID); uerr == nil {
+		req.ACRValue = u.ACR
+		req.AMRValues = u.AMR
+	}
 	return s.saveAuthRequest(req)
 }
 
@@ -339,7 +367,39 @@ func (s *Storage) currentKey() *signingKey {
 }
 
 func (s *Storage) SigningKey(ctx context.Context) (op.SigningKey, error) {
+	if alg := signingAlgFromContext(ctx); alg != "" && IsSupportedAlg(alg) {
+		if k, err := s.ensureKeyForAlg(alg); err == nil {
+			return k, nil
+		}
+	}
 	return s.currentKey(), nil
+}
+
+// ensureKeyForAlg returns an active signing key of the requested algorithm,
+// loading or generating (and persisting) one if needed. Results are cached.
+func (s *Storage) ensureKeyForAlg(alg jose.SignatureAlgorithm) (*signingKey, error) {
+	s.keyMu.RLock()
+	if k, ok := s.keysByAlg[alg]; ok {
+		s.keyMu.RUnlock()
+		return k, nil
+	}
+	s.keyMu.RUnlock()
+
+	s.keyMu.Lock()
+	defer s.keyMu.Unlock()
+	if k, ok := s.keysByAlg[alg]; ok { // re-check under write lock
+		return k, nil
+	}
+	if k, err := s.db.loadActiveKeyByAlg(alg); err == nil {
+		s.keysByAlg[alg] = k
+		return k, nil
+	}
+	k, err := s.db.generateSigningKey(alg)
+	if err != nil {
+		return nil, err
+	}
+	s.keysByAlg[alg] = k
+	return k, nil
 }
 
 func (s *Storage) SignatureAlgorithms(context.Context) ([]jose.SignatureAlgorithm, error) {
@@ -382,6 +442,7 @@ func (s *Storage) RotateSigningKey(alg jose.SignatureAlgorithm) (string, error) 
 	}
 	s.keyMu.Lock()
 	s.key = key
+	s.keysByAlg[key.algorithm] = key
 	s.keyMu.Unlock()
 	return key.id, nil
 }
@@ -505,11 +566,19 @@ func (s *Storage) setUserinfo(ctx context.Context, userInfo *oidc.UserInfo, user
 		case oidc.ScopePhone:
 			userInfo.PhoneNumber = u.Phone
 			userInfo.PhoneNumberVerified = oidc.Bool(u.PhoneVerified)
+		case oidc.ScopeAddress:
+			if addr, ok := u.Claims["address"].(map[string]any); ok {
+				userInfo.Address = toAddress(addr)
+			}
 		}
 	}
 	// Always assert arbitrary custom claims: per-user static, then per-user
 	// conditional (by client/scope), then per-client custom (most specific).
+	// "address" is reserved for the address scope above and not emitted raw.
 	for k, v := range u.Claims {
+		if k == "address" {
+			continue
+		}
 		userInfo.AppendClaims(k, v)
 	}
 	for k, v := range u.EvaluateConditionalClaims(clientID, scopes) {
@@ -703,6 +772,24 @@ func parseTime(s string) time.Time {
 		return time.Time{}
 	}
 	return t
+}
+
+// toAddress maps a free-form address claim object to the OIDC address structure.
+func toAddress(m map[string]any) *oidc.UserInfoAddress {
+	str := func(k string) string {
+		if v, ok := m[k].(string); ok {
+			return v
+		}
+		return ""
+	}
+	return &oidc.UserInfoAddress{
+		Formatted:     str("formatted"),
+		StreetAddress: str("street_address"),
+		Locality:      str("locality"),
+		Region:        str("region"),
+		PostalCode:    str("postal_code"),
+		Country:       str("country"),
+	}
 }
 
 func localeTag(s string) language.Tag {

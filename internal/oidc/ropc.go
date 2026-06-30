@@ -86,7 +86,7 @@ func ropcExchange(w http.ResponseWriter, r *http.Request, provider op.OpenIDProv
 		return
 	}
 
-	request := storage.NewAuthenticatedRequest(clientID, user.ID, scopes)
+	request := storage.NewAuthenticatedRequest(clientID, user, scopes)
 	resp, err := op.CreateTokenResponse(r.Context(), request, opClient, provider, true, "", "")
 	if err != nil {
 		writeTokenError(w, http.StatusBadRequest, "invalid_grant", err.Error())

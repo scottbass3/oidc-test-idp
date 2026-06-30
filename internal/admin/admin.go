@@ -163,11 +163,12 @@ func (h *Handler) rotateKey(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) users(w http.ResponseWriter, r *http.Request) {
 	users, _ := h.store.DB().ListUsers()
-	data := map[string]any{"Title": "Users", "Users": users, "ClaimsJSON": "{}", "ConditionalJSON": "[]"}
+	data := map[string]any{"Title": "Users", "Users": users, "ClaimsJSON": "{}", "ConditionalJSON": "[]", "AMRStr": ""}
 	if id := r.URL.Query().Get("edit"); id != "" {
 		if u, err := h.store.DB().GetUser(id); err == nil {
 			data["Edit"] = u
 			data["ClaimsJSON"] = prettyJSON(u.Claims)
+			data["AMRStr"] = strings.Join(u.AMR, ", ")
 			if len(u.ConditionalClaims) > 0 {
 				data["ConditionalJSON"] = prettyJSON(u.ConditionalClaims)
 			}
@@ -210,6 +211,8 @@ func (h *Handler) saveUser(w http.ResponseWriter, r *http.Request) {
 		PreferredLanguage: orDefault(r.FormValue("preferred_language"), "en"),
 		Claims:            claims,
 		ConditionalClaims: conditional,
+		ACR:               strings.TrimSpace(r.FormValue("acr")),
+		AMR:               splitCommaSpace(r.FormValue("amr")),
 	}
 	if err := h.store.DB().SaveUser(u); err != nil {
 		h.usersError(w, err.Error())
@@ -221,7 +224,7 @@ func (h *Handler) saveUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) usersError(w http.ResponseWriter, msg string) {
 	users, _ := h.store.DB().ListUsers()
 	h.render.HTML(w, http.StatusBadRequest, "admin_users", map[string]any{
-		"Title": "Users", "Users": users, "Error": msg, "ClaimsJSON": "{}", "ConditionalJSON": "[]",
+		"Title": "Users", "Users": users, "Error": msg, "ClaimsJSON": "{}", "ConditionalJSON": "[]", "AMRStr": "",
 	})
 }
 
@@ -300,6 +303,11 @@ func (h *Handler) saveClient(w http.ResponseWriter, r *http.Request) {
 		LatencyMS:                 atoi(r.FormValue("latency_ms"), 0),
 		RedirectURIGlobList:       splitLines(r.FormValue("redirect_uris")),
 		JWKS:                      strings.TrimSpace(r.FormValue("jwks")),
+		IDTokenSignAlg:            strings.TrimSpace(r.FormValue("id_token_sign_alg")),
+	}
+	if c.IDTokenSignAlg != "" && !storage.IsSupportedAlg(jose.SignatureAlgorithm(c.IDTokenSignAlg)) {
+		h.clientsError(w, "Unsupported signing algorithm: "+c.IDTokenSignAlg)
+		return
 	}
 	if c.JWKS != "" && c.JWKS != "{}" {
 		var probe map[string]any
@@ -336,6 +344,17 @@ func authMethods() []oidc.AuthMethod {
 	return []oidc.AuthMethod{
 		oidc.AuthMethodNone, oidc.AuthMethodBasic, oidc.AuthMethodPost, oidc.AuthMethodPrivateKeyJWT,
 	}
+}
+
+// splitCommaSpace splits on commas and/or whitespace, dropping empties.
+func splitCommaSpace(s string) []string {
+	fields := strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n'
+	})
+	if len(fields) == 0 {
+		return nil
+	}
+	return fields
 }
 
 func splitLines(s string) []string {

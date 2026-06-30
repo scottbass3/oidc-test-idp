@@ -9,9 +9,16 @@ users:
     first_name: Alice
     last_name: Anderson
     preferred_language: en
+    acr: urn:mace:incommon:iap:silver   # authentication context class ref (mock step-up)
+    amr: [pwd, mfa]                     # authentication methods references
     claims:                      # arbitrary claims injected into id_token / userinfo / JWT access tokens
       role: admin
       groups: [admins, users]
+      address:                   # emitted as the standard address claim when the 'address' scope is requested
+        street_address: 1 Main St
+        locality: Lyon
+        postal_code: "69000"
+        country: FR
     conditional_claims:          # extra claims that depend on the requesting client and/or scopes
       - client_id: web-app       # only when web-app is the client
         claims:
@@ -38,6 +45,7 @@ clients:
     response_types: [code]
     grant_types: [authorization_code, refresh_token]
     access_token_type: jwt        # "jwt" or "opaque"
+    id_token_sign_alg: ES256      # optional: pin this client's token signing alg (RS256/ES256)
     custom_claims:                # extra claims merged into this client's tokens
       tenant: acme
 

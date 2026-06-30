@@ -44,6 +44,8 @@
         <div><label>Last name</label><input name="last_name" value="{{with .Edit}}{{.LastName}}{{end}}"></div>
         <div><label>Phone</label><input name="phone" value="{{with .Edit}}{{.Phone}}{{end}}"></div>
         <div><label>Preferred language</label><input name="preferred_language" value="{{with .Edit}}{{.PreferredLanguage}}{{else}}en{{end}}"></div>
+        <div><label>ACR (auth context class)</label><input name="acr" value="{{with .Edit}}{{.ACR}}{{end}}" placeholder="urn:mace:incommon:iap:silver"></div>
+        <div><label>AMR (comma/space separated)</label><input name="amr" value="{{.AMRStr}}" placeholder="pwd, mfa, otp"></div>
       </div>
       <label><input type="checkbox" name="email_verified" {{if or (not .Edit) .Edit.EmailVerified}}checked{{end}} style="width:auto"> Email verified</label>
       <label>Custom claims (JSON)</label>
@@ -102,6 +104,13 @@
           <select name="access_token_type">
             <option value="0" {{if and .Edit (eq .Edit.AccessTokenTypeValue 0)}}selected{{end}}>opaque (Bearer)</option>
             <option value="1" {{if and .Edit (eq .Edit.AccessTokenTypeValue 1)}}selected{{end}}>JWT</option>
+          </select>
+        </div>
+        <div><label>Token signing algorithm</label>
+          <select name="id_token_sign_alg">
+            <option value="" {{if or (not .Edit) (eq .Edit.IDTokenSignAlg "")}}selected{{end}}>default (current key)</option>
+            <option value="RS256" {{if and .Edit (eq .Edit.IDTokenSignAlg "RS256")}}selected{{end}}>RS256</option>
+            <option value="ES256" {{if and .Edit (eq .Edit.IDTokenSignAlg "ES256")}}selected{{end}}>ES256</option>
           </select>
         </div>
       </div>

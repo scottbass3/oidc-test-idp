@@ -100,6 +100,24 @@ func (db *DB) loadAllSigningKeys() ([]*signingKey, error) {
 	return out, rows.Err()
 }
 
+// loadActiveKeyByAlg returns the newest active signing key with the given
+// algorithm, or an error if none exists.
+func (db *DB) loadActiveKeyByAlg(alg jose.SignatureAlgorithm) (*signingKey, error) {
+	var id, pemStr string
+	err := db.conn.QueryRow(
+		`SELECT id, private_pem FROM signing_keys WHERE active = 1 AND algorithm = ? ORDER BY created_at DESC LIMIT 1`,
+		string(alg),
+	).Scan(&id, &pemStr)
+	if err != nil {
+		return nil, err
+	}
+	key, perr := parsePrivatePEM(pemStr)
+	if perr != nil {
+		return nil, perr
+	}
+	return &signingKey{id: id, algorithm: alg, key: key}, nil
+}
+
 // generateSigningKey creates, persists and returns a fresh signing key of the
 // requested algorithm (RS256 or ES256).
 func (db *DB) generateSigningKey(alg jose.SignatureAlgorithm) (*signingKey, error) {

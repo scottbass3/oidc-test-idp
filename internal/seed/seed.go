@@ -34,6 +34,8 @@ type UserSeed struct {
 	PreferredLanguage string                         `yaml:"preferred_language" json:"preferred_language"`
 	Claims            map[string]any                 `yaml:"claims" json:"claims"`
 	ConditionalClaims []storage.ConditionalClaimRule `yaml:"conditional_claims" json:"conditional_claims"`
+	ACR               string                         `yaml:"acr" json:"acr"`
+	AMR               []string                       `yaml:"amr" json:"amr"`
 }
 
 // ClientSeed describes a seeded OAuth/OIDC client.
@@ -51,6 +53,7 @@ type ClientSeed struct {
 	CustomClaims      map[string]any `yaml:"custom_claims" json:"custom_claims"`
 	AccessTokenTTLSec int            `yaml:"access_token_ttl_seconds" json:"access_token_ttl_seconds"`
 	JWKS              string         `yaml:"jwks" json:"jwks"` // public JWKS JSON for private_key_jwt
+	IDTokenSignAlg    string         `yaml:"id_token_sign_alg" json:"id_token_sign_alg"`
 }
 
 // ApplyIfEmpty seeds the database when it has no clients and no users. If path is
@@ -99,6 +102,8 @@ func apply(db *storage.DB, seed *File) error {
 			PreferredLanguage: orDefault(u.PreferredLanguage, "en"),
 			Claims:            u.Claims,
 			ConditionalClaims: u.ConditionalClaims,
+			ACR:               u.ACR,
+			AMR:               u.AMR,
 		}); err != nil {
 			return err
 		}
@@ -161,6 +166,7 @@ func clientFromSeed(c ClientSeed) *storage.Client {
 		RefreshTokenLifetime:      5 * time.Hour,
 		IDTokenLifetimeDuration:   time.Hour,
 		JWKS:                      c.JWKS,
+		IDTokenSignAlg:            c.IDTokenSignAlg,
 	}
 }
 
@@ -174,7 +180,8 @@ func defaultSeed() *File {
 				ConditionalClaims: []storage.ConditionalClaimRule{
 					{ClientID: "web-app", Claims: map[string]any{"tenant": "acme"}},
 					{Scopes: []string{"profile"}, Claims: map[string]any{"department": "engineering"}},
-				}},
+				},
+				ACR: "urn:mace:incommon:iap:silver", AMR: []string{"pwd", "mfa"}},
 			{ID: "user-bob", Username: "bob", Email: "bob@example.com",
 				EmailVerified: &t, FirstName: "Bob", LastName: "Brown",
 				Claims: map[string]any{"role": "user", "groups": []string{"users"}}},
