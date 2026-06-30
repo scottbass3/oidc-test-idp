@@ -1,43 +1,49 @@
 {{define "device_usercode"}}{{template "head" .}}
-<div class="container center">
-  <div class="card">
-    <h1>Device login</h1>
-    <p class="muted">Enter the code shown on your device.</p>
-    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+<main>
+  <div class="panel">
+    <h3>Device login</h3>
+    <p class="hint-text">Enter the code shown on your device.</p>
+    {{if .Error}}<p class="status-msg error">{{.Error}}</p>{{end}}
     <form method="get" action="/device">
-      <label>User code</label>
-      <input type="text" name="user_code" value="{{.UserCode}}" autofocus>
-      <div style="height:.6rem"></div>
-      <button type="submit">Continue</button>
+      <div class="form-row">
+        <label>User code</label>
+        <input type="text" name="user_code" value="{{.UserCode}}" autofocus>
+      </div>
+      <div class="actions">
+        <button class="btn-primary" type="submit">Continue</button>
+      </div>
     </form>
   </div>
-</div>
+</main>
 {{template "foot" .}}{{end}}
 
 {{define "device_select"}}{{template "head" .}}
-<div class="container center">
-  <div class="card">
-    <h1>Choose an account</h1>
-    <p class="muted">Approve device <code>{{.UserCode}}</code> by selecting a user.</p>
-    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
-    {{range .Users}}
-    <form method="post" action="/device/approve">
-      <input type="hidden" name="user_code" value="{{$.UserCode}}">
-      <input type="hidden" name="userID" value="{{.ID}}">
-      <div class="account">
-        <div class="meta">
-          <span class="name">{{if .FirstName}}{{.FirstName}} {{.LastName}}{{else}}{{.Username}}{{end}}</span>
-          <span class="muted">{{.Email}}</span>
-        </div>
-        <div class="row">
-          <button type="submit" name="action" value="allow">Approve</button>
-          <button type="submit" name="action" value="deny" class="secondary">Deny</button>
-        </div>
-      </div>
-    </form>
+<main>
+  <div class="panel">
+    <h3>Choose an account</h3>
+    <p class="hint-text">Approve device <code>{{.UserCode}}</code> by selecting a user.</p>
+    {{if .Error}}<p class="status-msg error">{{.Error}}</p>{{end}}
+    {{if .Users}}
+    <table class="params-table">
+      <tr><th>Name</th><th>Email</th><th></th></tr>
+      {{range .Users}}
+      <tr>
+        <td class="accent">{{if .FirstName}}{{.FirstName}} {{.LastName}}{{else}}{{.Username}}{{end}}</td>
+        <td>{{.Email}}</td>
+        <td>
+          <form method="post" action="/device/approve" class="actions">
+            <input type="hidden" name="user_code" value="{{$.UserCode}}">
+            <input type="hidden" name="userID" value="{{.ID}}">
+            <button class="btn-primary" type="submit" name="action" value="allow">Approve</button>
+            <button class="btn-secondary" type="submit" name="action" value="deny">Deny</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </table>
     {{else}}
-    <p class="muted">No users configured.</p>
+    <p class="hint-text">No users configured.</p>
     {{end}}
   </div>
-</div>
+</main>
 {{template "foot" .}}{{end}}

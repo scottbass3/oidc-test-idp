@@ -1,6 +1,10 @@
-/* Visual style aligned with oidc-test-client (GitHub-dark), but with a teal
-   accent instead of the client's blue, so the two apps are easy to tell apart. */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Shared stylesheet with oidc-test-client (same elements/classes), with a teal
+   accent instead of the client's blue so the two apps are distinguishable. */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
   --bg: #0d1117;
@@ -9,7 +13,7 @@
   --border: #30363d;
   --text: #c9d1d9;
   --text-muted: #8b949e;
-  --accent: #2dd4bf;       /* teal (client uses blue #58a6ff) */
+  --accent: #2dd4bf;          /* client uses blue #58a6ff */
   --accent-hover: #5eead4;
   --green: #3fb950;
   --red: #f85149;
@@ -19,7 +23,7 @@
 }
 
 html, body {
-  min-height: 100%;
+  height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -27,128 +31,261 @@ html, body {
   line-height: 1.5;
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a { color: var(--accent); }
 
-/* Top navigation (admin) — header + tabs combined */
-nav.top {
+/* Header */
+header {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0 1rem;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
   background: var(--bg2);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 100;
-  overflow-x: auto;
 }
-nav.top .brand {
-  font-family: var(--font-mono);
+
+.logo {
+  font-size: 1.1rem;
   font-weight: 600;
   color: var(--accent);
-  padding: 0.75rem 1rem 0.75rem 0.25rem;
-  margin-right: 0.5rem;
-  white-space: nowrap;
+  font-family: var(--font-mono);
 }
-nav.top a {
-  padding: 0.7rem 1rem;
+
+.subtitle {
   color: var(--text-muted);
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
-  transition: color .15s, border-color .15s, background .15s;
+  font-size: 0.85rem;
 }
-nav.top a:hover { color: var(--text); background: var(--bg3); text-decoration: none; }
-nav.top a.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-/* Layout */
-.container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.25rem; }
-.center { max-width: 460px; }
-h1 { font-size: 1.3rem; margin-bottom: 1rem; }
-h2 { font-size: 1rem; margin-bottom: .75rem; }
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  padding: 0 1rem;
+}
 
-/* Panels / cards */
-.card {
+.tab-btn {
+  padding: 0.65rem 1.1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--text);
+  background: var(--bg3);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Main */
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* Panel */
+.panel {
   background: var(--bg2);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1.25rem;
   margin-bottom: 1rem;
 }
-.card h2 { padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
 
-.muted { color: var(--text-muted); font-size: .85rem; }
-
-/* Account list (login / device select) */
-.account {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 1rem; padding: .7rem 1rem; border: 1px solid var(--border);
-  border-radius: 6px; margin-bottom: .6rem; background: var(--bg3);
-  transition: border-color .15s;
+.panel h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
 }
-.account:hover { border-color: var(--accent); }
-.account .meta { display: flex; flex-direction: column; }
-.account .meta .name { font-weight: 600; color: var(--text); }
 
-/* Forms */
-label { display: block; margin: .7rem 0 .25rem; font-size: .8rem; color: var(--text-muted); }
-input, select, textarea {
-  width: 100%;
+/* Form rows */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-row:last-child {
+  margin-bottom: 0;
+}
+
+.form-row label {
+  width: 200px;
+  min-width: 200px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 0.5rem;
+}
+
+.form-row input[type="text"],
+.form-row input[type="password"],
+.form-row input[type="number"],
+.form-row select,
+.form-row textarea {
+  flex: 1;
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text);
-  font-size: .85rem;
+  font-size: 0.85rem;
   font-family: var(--font-mono);
-  padding: .45rem .6rem;
+  padding: 0.4rem 0.6rem;
   outline: none;
-  transition: border-color .15s;
+  transition: border-color 0.15s;
 }
-input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-textarea { resize: vertical; min-height: 72px; }
 
-/* Buttons — default is primary (teal) */
-button, .btn {
-  cursor: pointer;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: .85rem;
-  font-weight: 600;
-  padding: .5rem 1.1rem;
-  background: var(--accent);
-  color: #06302b;
-  transition: background .15s, opacity .15s;
-  display: inline-block;
+.form-row input:focus,
+.form-row select:focus,
+.form-row textarea:focus {
+  border-color: var(--accent);
 }
-button:hover, .btn:hover { background: var(--accent-hover); text-decoration: none; }
-button:active, .btn:active { opacity: .85; }
 
-button.secondary, .btn.secondary {
-  background: var(--bg3);
-  color: var(--text);
-  border-color: var(--border);
+.form-row textarea {
+  resize: vertical;
+  font-family: var(--font-mono);
+  min-height: 72px;
 }
-button.secondary:hover, .btn.secondary:hover { background: var(--border); }
 
-button.danger, .btn.danger { background: var(--red); color: #fff; }
-button.danger:hover { background: #ff6a60; }
+.form-row .hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
 
-/* Tables */
-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { background: var(--bg3); color: var(--text-muted); font-weight: 600; }
-td code { color: var(--accent); background: none; padding: 0; }
+.hint-text {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
 
-/* Misc */
-.row { display: flex; gap: .6rem; align-items: center; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem 1rem; }
-.error { color: var(--red); margin: .5rem 0; font-size: .85rem; }
 code {
   font-family: var(--font-mono);
   background: var(--bg3);
-  padding: .15em .4em;
+  padding: 0.15em 0.4em;
   border-radius: 4px;
-  font-size: .85em;
+  font-size: 0.85em;
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.8rem;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+button:active {
+  opacity: 0.8;
+}
+
+/* Button classes are self-contained so they also work on <a> (Edit/Cancel links). */
+.btn-primary, .btn-secondary, .btn-danger {
+  display: inline-block;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.8rem;
+  text-decoration: none;
+  line-height: 1.4;
+  transition: opacity 0.15s, background 0.15s;
+}
+.btn-primary:hover, .btn-secondary:hover, .btn-danger:hover { text-decoration: none; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #06302b;
+  font-weight: 600;
+  padding: 0.5rem 1.2rem;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-primary.btn-large {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+}
+
+.btn-secondary {
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+}
+
+.btn-danger {
+  background: var(--red);
+  color: #fff;
+}
+
+/* Actions row */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.status-msg {
+  font-size: 0.85rem;
+  color: var(--green);
+}
+
+.status-msg.error {
+  color: var(--red);
+}
+
+/* Params table */
+.params-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.params-table th {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg3);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.params-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.params-table td.accent {
+  color: var(--accent);
 }
 
 /* Scrollbar */
@@ -157,6 +294,15 @@ code {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+/* Responsive */
 @media (max-width: 640px) {
-  .grid2 { grid-template-columns: 1fr; }
+  .form-row {
+    flex-wrap: wrap;
+  }
+  .form-row label {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    padding-right: 0;
+  }
 }

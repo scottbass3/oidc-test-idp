@@ -58,14 +58,14 @@ func (h *Handler) logs(w http.ResponseWriter, r *http.Request) {
 		entries = h.reqlog.Entries()
 	}
 	h.render.HTML(w, http.StatusOK, "admin_logs", map[string]any{
-		"Title": "Logs", "Entries": entries,
+		"Title": "Logs", "Nav": "logs", "Entries": entries,
 	})
 }
 
 func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 	clients, users, _ := h.store.DB().CountConfig()
 	h.render.HTML(w, http.StatusOK, "admin_dashboard", map[string]any{
-		"Title": "Admin", "Users": users, "Clients": clients, "Issuer": h.issuer,
+		"Title": "Admin", "Nav": "dashboard", "Users": users, "Clients": clients, "Issuer": h.issuer,
 	})
 }
 
@@ -80,7 +80,7 @@ func (h *Handler) settings(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) renderSettings(w http.ResponseWriter, status int, msg string) {
 	override := h.store.DB().GetSetting(DiscoveryOverrideKey, "{}")
 	h.render.HTML(w, status, "admin_settings", map[string]any{
-		"Title": "Settings", "Issuer": h.issuer, "KeyID": h.keyID,
+		"Title": "Settings", "Nav": "settings", "Issuer": h.issuer, "KeyID": h.keyID,
 		"DiscoveryOverride": override, "Error": msg,
 	})
 }
@@ -120,7 +120,7 @@ func (h *Handler) renderKeys(w http.ResponseWriter, status int, msg string) {
 		current = k.ID()
 	}
 	h.render.HTML(w, status, "admin_keys", map[string]any{
-		"Title": "Keys", "Keys": keys, "Current": current, "Notice": msg,
+		"Title": "Keys", "Nav": "keys", "Keys": keys, "Current": current, "Notice": msg,
 		"Algorithms": storage.SupportedSignatureAlgorithms,
 	})
 }
@@ -146,7 +146,7 @@ func (h *Handler) rotateKey(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) users(w http.ResponseWriter, r *http.Request) {
 	users, _ := h.store.DB().ListUsers()
-	data := map[string]any{"Title": "Users", "Users": users, "ClaimsJSON": "{}", "ConditionalJSON": "[]", "AMRStr": ""}
+	data := map[string]any{"Title": "Users", "Nav": "users", "Users": users, "ClaimsJSON": "{}", "ConditionalJSON": "[]", "AMRStr": ""}
 	if id := r.URL.Query().Get("edit"); id != "" {
 		if u, err := h.store.DB().GetUser(id); err == nil {
 			data["Edit"] = u
@@ -208,7 +208,7 @@ func (h *Handler) saveUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) usersError(w http.ResponseWriter, msg string) {
 	users, _ := h.store.DB().ListUsers()
 	h.render.HTML(w, http.StatusBadRequest, "admin_users", map[string]any{
-		"Title": "Users", "Users": users, "Error": msg, "ClaimsJSON": "{}", "ConditionalJSON": "[]", "AMRStr": "",
+		"Title": "Users", "Nav": "users", "Users": users, "Error": msg, "ClaimsJSON": "{}", "ConditionalJSON": "[]", "AMRStr": "",
 	})
 }
 
@@ -222,7 +222,7 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) clients(w http.ResponseWriter, r *http.Request) {
 	clients, _ := h.store.DB().ListClients()
 	data := map[string]any{
-		"Title": "Clients", "Clients": clients,
+		"Title": "Clients", "Nav": "clients", "Clients": clients,
 		"AuthMethods":  authMethods(),
 		"RedirectURIs": "", "PostLogout": "",
 		"ResponseTypes": "code", "GrantTypes": "authorization_code,refresh_token",
@@ -310,7 +310,7 @@ func (h *Handler) saveClient(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) clientsError(w http.ResponseWriter, msg string) {
 	clients, _ := h.store.DB().ListClients()
 	h.render.HTML(w, http.StatusBadRequest, "admin_clients", map[string]any{
-		"Title": "Clients", "Clients": clients, "Error": msg,
+		"Title": "Clients", "Nav": "clients", "Clients": clients, "Error": msg,
 		"AuthMethods": authMethods(), "RedirectURIs": "", "PostLogout": "",
 		"ResponseTypes": "code", "GrantTypes": "authorization_code,refresh_token",
 		"ATTTL": 300, "RTTTL": 18000, "IDTTL": 3600, "CustomClaimsJSON": "{}", "JWKS": "",

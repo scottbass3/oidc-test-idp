@@ -5,9 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.Title}}</title>
   <link rel="stylesheet" href="/static/app.css">
-  <script src="/static/htmx.min.js" defer></script>
 </head>
 <body>
+<header>
+  <span class="logo">⬡ mock-idp</span>
+  <span class="subtitle">OAuth2 / OpenID Connect Test IdP</span>
+</header>
 {{end}}
 
 {{define "foot"}}
@@ -16,14 +19,13 @@
 {{end}}
 
 {{define "adminnav"}}
-<nav class="top">
-  <span class="brand">mock-idp</span>
-  <a href="/admin">Dashboard</a>
-  <a href="/admin/users">Users</a>
-  <a href="/admin/clients">Clients</a>
-  <a href="/admin/keys">Keys</a>
-  <a href="/admin/logs">Logs</a>
-  <a href="/admin/settings">Settings</a>
-  <a href="/.well-known/openid-configuration" target="_blank">Discovery</a>
+<nav class="tabs">
+  <a class="tab-btn {{if eq .Nav "dashboard"}}active{{end}}" href="/admin">Dashboard</a>
+  <a class="tab-btn {{if eq .Nav "users"}}active{{end}}" href="/admin/users">Users</a>
+  <a class="tab-btn {{if eq .Nav "clients"}}active{{end}}" href="/admin/clients">Clients</a>
+  <a class="tab-btn {{if eq .Nav "keys"}}active{{end}}" href="/admin/keys">Keys</a>
+  <a class="tab-btn {{if eq .Nav "logs"}}active{{end}}" href="/admin/logs">Logs</a>
+  <a class="tab-btn {{if eq .Nav "settings"}}active{{end}}" href="/admin/settings">Settings</a>
+  <a class="tab-btn" href="/.well-known/openid-configuration" target="_blank">Discovery</a>
 </nav>
 {{end}}
