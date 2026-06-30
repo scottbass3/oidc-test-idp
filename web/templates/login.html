@@ -1,0 +1,51 @@
+{{define "select_account"}}{{template "head" .}}
+<div class="container center">
+  <div class="card">
+    <h1>Choose an account</h1>
+    <p class="muted">Test IdP — pick a user to sign in as. No password required.</p>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    {{range .Users}}
+    <form method="post" action="/login">
+      <input type="hidden" name="authRequestID" value="{{$.AuthRequestID}}">
+      <input type="hidden" name="userID" value="{{.ID}}">
+      <div class="account">
+        <div class="meta">
+          <span class="name">{{if .FirstName}}{{.FirstName}} {{.LastName}}{{else}}{{.Username}}{{end}}</span>
+          <span class="muted">{{.Email}}</span>
+        </div>
+        <button type="submit">Sign in</button>
+      </div>
+    </form>
+    {{else}}
+    <p class="muted">No users configured. Create one in the <a href="/admin/users">admin UI</a>.</p>
+    {{end}}
+  </div>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "consent"}}{{template "head" .}}
+<div class="container center">
+  <div class="card">
+    <h1>Authorize</h1>
+    <p class="muted"><strong>{{.ClientID}}</strong> wants to access your account
+      <strong>{{.Username}}</strong>.</p>
+    <p>Requested scopes:</p>
+    <ul>{{range .Scopes}}<li><code>{{.}}</code></li>{{end}}</ul>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <form method="post" action="/consent" class="row">
+      <input type="hidden" name="authRequestID" value="{{.AuthRequestID}}">
+      <button type="submit" name="action" value="allow">Allow</button>
+      <button type="submit" name="action" value="deny" class="secondary">Deny</button>
+    </form>
+  </div>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "message"}}{{template "head" .}}
+<div class="container center">
+  <div class="card">
+    <h1>{{.Heading}}</h1>
+    <p class="muted">{{.Body}}</p>
+  </div>
+</div>
+{{template "foot" .}}{{end}}

@@ -1,0 +1,58 @@
+:root {
+  --bg: #0f1115;
+  --card: #1a1d24;
+  --fg: #e6e8eb;
+  --muted: #9aa0a6;
+  --accent: #4f8cff;
+  --accent-fg: #fff;
+  --border: #2a2e37;
+  --danger: #ff5c5c;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+}
+a { color: var(--accent); }
+.container { max-width: 880px; margin: 0 auto; padding: 2rem 1.25rem; }
+.center { max-width: 440px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+h1, h2 { margin-top: 0; }
+.muted { color: var(--muted); font-size: .9rem; }
+.account {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: .75rem 1rem; border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: .6rem;
+}
+.account:hover { border-color: var(--accent); }
+.account .meta { display: flex; flex-direction: column; }
+.account .meta .name { font-weight: 600; }
+button, .btn {
+  background: var(--accent); color: var(--accent-fg); border: none;
+  padding: .55rem 1rem; border-radius: 8px; cursor: pointer; font-size: .95rem;
+}
+button.secondary, .btn.secondary { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+button.danger { background: var(--danger); }
+input, select, textarea {
+  width: 100%; padding: .5rem .6rem; background: #11141a; color: var(--fg);
+  border: 1px solid var(--border); border-radius: 8px; font-size: .95rem;
+}
+label { display: block; margin: .6rem 0 .2rem; font-size: .85rem; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--border); }
+.row { display: flex; gap: .6rem; align-items: center; }
+.error { color: var(--danger); margin: .5rem 0; }
+nav.top { display: flex; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+nav.top a { text-decoration: none; color: var(--muted); }
+nav.top a:hover { color: var(--fg); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+code { background: #11141a; padding: .1rem .35rem; border-radius: 5px; }

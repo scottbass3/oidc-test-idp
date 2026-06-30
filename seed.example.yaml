@@ -1,0 +1,72 @@
+# Example seed file. Applied only on first boot, when the database is empty.
+# Mount it and point IDP_SEED_PATH at it (see docker-compose.yml).
+
+users:
+  - id: user-alice               # optional; a UUID is generated when omitted
+    username: alice
+    email: alice@example.com
+    email_verified: true
+    first_name: Alice
+    last_name: Anderson
+    preferred_language: en
+    claims:                      # arbitrary claims injected into id_token / userinfo / JWT access tokens
+      role: admin
+      groups: [admins, users]
+      department: engineering
+
+  - username: bob
+    email: bob@example.com
+    first_name: Bob
+    last_name: Brown
+    claims:
+      role: user
+      groups: [users]
+
+clients:
+  # Confidential web app (Authorization Code + Refresh, JWT access tokens).
+  - id: web-app
+    secret: web-secret
+    auth_method: client_secret_basic
+    redirect_uris:
+      - http://localhost:8080/callback
+    response_types: [code]
+    grant_types: [authorization_code, refresh_token]
+    access_token_type: jwt        # "jwt" or "opaque"
+    custom_claims:                # extra claims merged into this client's tokens
+      tenant: acme
+
+  # Public SPA / native app (Authorization Code + PKCE).
+  - id: spa-app
+    auth_method: none
+    redirect_uris:
+      - http://localhost:3000/callback
+    response_types: [code]
+    grant_types: [authorization_code, refresh_token]
+    access_token_type: jwt
+
+  # Machine-to-machine (Client Credentials).
+  - id: service-app
+    secret: service-secret
+    auth_method: client_secret_basic
+    grant_types: [client_credentials]
+    access_token_type: jwt
+
+  # Device flow.
+  - id: device-app
+    secret: device-secret
+    auth_method: client_secret_basic
+    grant_types: ["urn:ietf:params:oauth:grant-type:device_code"]
+
+  # private_key_jwt client authentication: register the client's PUBLIC JWKS.
+  # The client signs token-request assertions; the IdP validates them by `kid`.
+  - id: pkjwt-app
+    auth_method: private_key_jwt
+    redirect_uris:
+      - http://localhost:8080/auth/callback
+    grant_types: [authorization_code, refresh_token]
+    access_token_type: jwt
+    jwks: |
+      {"keys":[{"kty":"RSA","use":"sig","kid":"client-key-1","alg":"RS256","n":"...","e":"AQAB"}]}
+
+  # Example: mock a flaky IdP by forcing an error and adding latency
+  # (configure live in the admin UI, or seed here once those fields are exposed).

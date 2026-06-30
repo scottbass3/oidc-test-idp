@@ -1,0 +1,207 @@
+{{define "admin_dashboard"}}{{template "head" .}}{{template "adminnav" .}}
+<div class="container">
+  <h1>Mock IdP admin</h1>
+  <div class="grid2">
+    <div class="card"><h2>{{.Users}}</h2><p class="muted">users</p><a class="btn" href="/admin/users">Manage users</a></div>
+    <div class="card"><h2>{{.Clients}}</h2><p class="muted">clients</p><a class="btn" href="/admin/clients">Manage clients</a></div>
+  </div>
+  <div class="card">
+    <h2>Issuer</h2>
+    <p><code>{{.Issuer}}</code></p>
+    <p class="muted">Discovery: <a href="/.well-known/openid-configuration" target="_blank">/.well-known/openid-configuration</a></p>
+  </div>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "admin_users"}}{{template "head" .}}{{template "adminnav" .}}
+<div class="container">
+  <h1>Users</h1>
+  {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+  <div class="card">
+    <table>
+      <tr><th>Username</th><th>Email</th><th>Subject (id)</th><th></th></tr>
+      {{range .Users}}
+      <tr>
+        <td>{{.Username}}</td><td>{{.Email}}</td><td><code>{{.ID}}</code></td>
+        <td class="row">
+          <a class="btn secondary" href="/admin/users?edit={{.ID}}">Edit</a>
+          <form method="post" action="/admin/users/{{.ID}}/delete" onsubmit="return confirm('Delete {{.Username}}?')">
+            <button class="danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </table>
+  </div>
+  <div class="card">
+    <h2>{{if .Edit}}Edit user{{else}}New user{{end}}</h2>
+    <form method="post" action="/admin/users">
+      <input type="hidden" name="id" value="{{with .Edit}}{{.ID}}{{end}}">
+      <div class="grid2">
+        <div><label>Username</label><input name="username" value="{{with .Edit}}{{.Username}}{{end}}" required></div>
+        <div><label>Email</label><input name="email" value="{{with .Edit}}{{.Email}}{{end}}"></div>
+        <div><label>First name</label><input name="first_name" value="{{with .Edit}}{{.FirstName}}{{end}}"></div>
+        <div><label>Last name</label><input name="last_name" value="{{with .Edit}}{{.LastName}}{{end}}"></div>
+        <div><label>Phone</label><input name="phone" value="{{with .Edit}}{{.Phone}}{{end}}"></div>
+        <div><label>Preferred language</label><input name="preferred_language" value="{{with .Edit}}{{.PreferredLanguage}}{{else}}en{{end}}"></div>
+      </div>
+      <label><input type="checkbox" name="email_verified" {{if or (not .Edit) .Edit.EmailVerified}}checked{{end}} style="width:auto"> Email verified</label>
+      <label>Custom claims (JSON)</label>
+      <textarea name="claims" rows="5">{{.ClaimsJSON}}</textarea>
+      <div style="height:.6rem"></div>
+      <button type="submit">Save user</button>
+      {{if .Edit}}<a class="btn secondary" href="/admin/users">Cancel</a>{{end}}
+    </form>
+  </div>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "admin_clients"}}{{template "head" .}}{{template "adminnav" .}}
+<div class="container">
+  <h1>Clients</h1>
+  {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+  <div class="card">
+    <table>
+      <tr><th>Client ID</th><th>Grant types</th><th>Token</th><th></th></tr>
+      {{range .Clients}}
+      <tr>
+        <td><code>{{.ID}}</code></td>
+        <td>{{range .GrantTypeList}}<code>{{.}}</code> {{end}}</td>
+        <td>{{if eq .AccessTokenTypeValue 1}}JWT{{else}}opaque{{end}}</td>
+        <td class="row">
+          <a class="btn secondary" href="/admin/clients?edit={{.ID}}">Edit</a>
+          <form method="post" action="/admin/clients/{{.ID}}/delete" onsubmit="return confirm('Delete {{.ID}}?')">
+            <button class="danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </table>
+  </div>
+  <div class="card">
+    <h2>{{if .Edit}}Edit client{{else}}New client{{end}}</h2>
+    <form method="post" action="/admin/clients">
+      <input type="hidden" name="orig_id" value="{{with .Edit}}{{.ID}}{{end}}">
+      <div class="grid2">
+        <div><label>Client ID</label><input name="id" value="{{with .Edit}}{{.ID}}{{end}}" required></div>
+        <div><label>Secret (blank = public/PKCE)</label><input name="secret" value="{{with .Edit}}{{.Secret}}{{end}}"></div>
+      </div>
+      <label>Redirect URIs (one per line)</label>
+      <textarea name="redirect_uris" rows="3">{{.RedirectURIs}}</textarea>
+      <label>Post-logout redirect URIs (one per line)</label>
+      <textarea name="post_logout" rows="2">{{.PostLogout}}</textarea>
+      <div class="grid2">
+        <div><label>Auth method</label>
+          <select name="auth_method">
+            {{range .AuthMethods}}<option value="{{.}}" {{if and $.Edit (eq $.Edit.AuthMethodValue .)}}selected{{end}}>{{.}}</option>{{end}}
+          </select>
+        </div>
+        <div><label>Access token type</label>
+          <select name="access_token_type">
+            <option value="0" {{if and .Edit (eq .Edit.AccessTokenTypeValue 0)}}selected{{end}}>opaque (Bearer)</option>
+            <option value="1" {{if and .Edit (eq .Edit.AccessTokenTypeValue 1)}}selected{{end}}>JWT</option>
+          </select>
+        </div>
+      </div>
+      <label>Response types (comma separated, e.g. code, id_token, "id_token token")</label>
+      <input name="response_types" value="{{.ResponseTypes}}">
+      <label>Grant types (comma separated)</label>
+      <input name="grant_types" value="{{.GrantTypes}}">
+      <div class="grid2">
+        <div><label>Access token TTL (s)</label><input name="at_ttl" type="number" value="{{.ATTTL}}"></div>
+        <div><label>Refresh token TTL (s)</label><input name="rt_ttl" type="number" value="{{.RTTTL}}"></div>
+        <div><label>ID token TTL (s)</label><input name="id_ttl" type="number" value="{{.IDTTL}}"></div>
+        <div><label>Forced error (blank = none)</label><input name="force_error" value="{{with .Edit}}{{.ForceError}}{{end}}"></div>
+        <div><label>Latency (ms)</label><input name="latency_ms" type="number" value="{{with .Edit}}{{.LatencyMS}}{{else}}0{{end}}"></div>
+      </div>
+      <label><input type="checkbox" name="dev_mode" {{if or (not .Edit) .Edit.DevModeFlag}}checked{{end}} style="width:auto"> Dev mode (relaxed redirect validation + globs)</label>
+      <label><input type="checkbox" name="require_consent" {{if and .Edit .Edit.RequireConsent}}checked{{end}} style="width:auto"> Require consent screen</label>
+      <label>Custom claims injected into tokens (JSON)</label>
+      <textarea name="custom_claims" rows="4">{{.CustomClaimsJSON}}</textarea>
+      <label>Client public JWKS for <code>private_key_jwt</code> (JSON, optional)</label>
+      <textarea name="jwks" rows="4" placeholder='{"keys":[{"kty":"RSA","kid":"...","n":"...","e":"AQAB"}]}'>{{.JWKS}}</textarea>
+      <div style="height:.6rem"></div>
+      <button type="submit">Save client</button>
+      {{if .Edit}}<a class="btn secondary" href="/admin/clients">Cancel</a>{{end}}
+    </form>
+  </div>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "admin_logs"}}{{template "head" .}}{{template "adminnav" .}}
+<div class="container">
+  <h1>Recent protocol requests</h1>
+  <p class="muted">Last requests to the OIDC/OAuth2 endpoints (newest first, in-memory, max 200).
+    Refresh to update.</p>
+  <div class="card">
+    <table>
+      <tr><th>Time</th><th>Method</th><th>Path</th><th>Client</th><th>Status</th><th>ms</th></tr>
+      {{range .Entries}}
+      <tr>
+        <td class="muted">{{.Time.Format "15:04:05"}}</td>
+        <td>{{.Method}}</td>
+        <td><code>{{.Path}}</code></td>
+        <td>{{if .ClientID}}<code>{{.ClientID}}</code>{{else}}<span class="muted">–</span>{{end}}</td>
+        <td>{{.Status}}</td>
+        <td class="muted">{{.DurationMS}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="6" class="muted">No requests recorded yet.</td></tr>
+      {{end}}
+    </table>
+  </div>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "admin_settings"}}{{template "head" .}}{{template "adminnav" .}}
+<div class="container">
+  <h1>Settings</h1>
+  <div class="card">
+    <p>Issuer: <code>{{.Issuer}}</code></p>
+    <p class="muted">Issuer, listen address and DB path are set via environment variables
+      (<code>IDP_ISSUER</code>, <code>IDP_ADDR</code>, <code>IDP_DB_PATH</code>) at container start.</p>
+  </div>
+  <div class="card">
+    <h2>Discovery overrides</h2>
+    <p class="muted">JSON object shallow-merged into <code>/.well-known/openid-configuration</code>.
+      Use it to mock a target IdP's discovery document (e.g. override
+      <code>id_token_signing_alg_values_supported</code>, add vendor-specific fields, or repoint an
+      endpoint). Applied live.</p>
+    {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
+    <form method="post" action="/admin/settings">
+      <textarea name="discovery_override" rows="10">{{.DiscoveryOverride}}</textarea>
+      <div style="height:.6rem"></div>
+      <button type="submit">Save overrides</button>
+    </form>
+  </div>
+</div>
+{{template "foot" .}}{{end}}
+
+{{define "admin_keys"}}{{template "head" .}}{{template "adminnav" .}}
+<div class="container">
+  <h1>Signing keys</h1>
+  {{if .Notice}}<div class="error">{{.Notice}}</div>{{end}}
+  <div class="card">
+    <p class="muted">The current key signs new tokens. Previous keys stay published in JWKS so
+      tokens signed before a rotation still validate.</p>
+    <table>
+      <tr><th>Key ID</th><th>Alg</th><th>Created</th><th>State</th></tr>
+      {{range .Keys}}
+      <tr>
+        <td><code>{{.ID}}</code></td>
+        <td>{{.Algorithm}}</td>
+        <td>{{.CreatedAt}}</td>
+        <td>{{if eq .ID $.Current}}<strong>current</strong>{{else if .Active}}published{{else}}retired{{end}}</td>
+      </tr>
+      {{end}}
+    </table>
+    <form method="post" action="/admin/keys/rotate" class="row" style="margin-top:1rem">
+      <select name="alg" style="width:auto">
+        {{range .Algorithms}}<option value="{{.}}">{{.}}</option>{{end}}
+      </select>
+      <button type="submit">Rotate signing key</button>
+    </form>
+    <p class="muted" style="margin-top:.6rem">JWKS: <a href="/keys" target="_blank">/keys</a></p>
+  </div>
+</div>
+{{template "foot" .}}{{end}}

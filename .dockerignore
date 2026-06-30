@@ -1,0 +1,7 @@
+.git
+*.db
+*.db-shm
+*.db-wal
+/data
+/tmp
+idp

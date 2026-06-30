@@ -1,0 +1,51 @@
+services:
+  idp:
+    build: .
+    image: oidc-test-idp:latest
+    ports:
+      - "9000:9000"
+    environment:
+      IDP_ISSUER: http://localhost:9000
+      IDP_ADDR: ":9000"
+      IDP_DB_PATH: /data/idp.db
+      IDP_ADMIN_USER: admin
+      IDP_ADMIN_PASSWORD: admin
+      # Optional: pre-populate from a mounted seed file on first boot.
+      # IDP_SEED_PATH: /seed/seed.yaml
+    volumes:
+      - idp-data:/data
+      # - ./seed.example.yaml:/seed/seed.yaml:ro
+    healthcheck:
+      # distroless has no shell/curl; use the binary's own check.
+      test: ["CMD", "/idp", "-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Browser-based OIDC debugger to exercise the IdP end-to-end.
+  # http://localhost:8080 — pre-wired to the seeded confidential "web-app" client.
+  client:
+    image: ghcr.io/scottbass3/oidc-test-client:1.0.4
+    ports:
+      # Host 8088 (8080 is commonly taken); container still listens on 8080.
+      - "8088:8080"
+    environment:
+      PORT: "8080"
+      # Browser-facing values (your browser resolves localhost:9000).
+      OIDC_ISSUER_URL: http://localhost:9000
+      OIDC_AUTH_URL: http://localhost:9000/authorize
+      # Server-side calls run from inside this container, so they reach the IdP
+      # by its compose service name instead of localhost.
+      OIDC_TOKEN_URL: http://idp:9000/oauth/token
+      OIDC_USERINFO_URL: http://idp:9000/userinfo
+      OIDC_INTROSPECTION_URL: http://idp:9000/oauth/introspect
+      OIDC_CLIENT_ID: web-app
+      OIDC_CLIENT_SECRET: web-secret
+      OIDC_REDIRECT_URI: http://localhost:8088/auth/callback
+    depends_on:
+      idp:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  idp-data:

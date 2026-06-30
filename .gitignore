@@ -1,0 +1,6 @@
+/idp
+*.db
+*.db-shm
+*.db-wal
+/data/
+/tmp/
