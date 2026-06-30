@@ -12,7 +12,13 @@ users:
     claims:                      # arbitrary claims injected into id_token / userinfo / JWT access tokens
       role: admin
       groups: [admins, users]
-      department: engineering
+    conditional_claims:          # extra claims that depend on the requesting client and/or scopes
+      - client_id: web-app       # only when web-app is the client
+        claims:
+          tenant: acme
+      - scopes: [profile]        # only when the 'profile' scope is requested
+        claims:
+          department: engineering
 
   - username: bob
     email: bob@example.com

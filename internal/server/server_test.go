@@ -329,6 +329,74 @@ func TestPrivateKeyJWTClientAuth(t *testing.T) {
 	}
 }
 
+func TestConditionalClaims(t *testing.T) {
+	issuer := startIDP(t)
+
+	// alice (seeded) has conditional rules:
+	//   client web-app    -> tenant: acme
+	//   scope  profile     -> department: engineering
+	userinfo := func(clientID, secret, scope string) map[string]any {
+		t.Helper()
+		jar, _ := cookiejar.New(nil)
+		c := &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		redirect := "http://localhost:8088/auth/callback"
+		if clientID == "spa-app" {
+			redirect = "http://localhost:3000/callback"
+		}
+		v := "0123456789012345678901234567890123456789abc"
+		sum := sha256.Sum256([]byte(v))
+		authURL := issuer + "/authorize?" + url.Values{
+			"client_id": {clientID}, "redirect_uri": {redirect},
+			"response_type": {"code"}, "scope": {scope}, "state": {"s"},
+			"code_challenge": {base64.RawURLEncoding.EncodeToString(sum[:])}, "code_challenge_method": {"S256"},
+		}.Encode()
+		loginLoc := mustRedirect(t, c, "GET", authURL, nil)
+		reqID := mustQuery(t, loginLoc, "authRequestID")
+		cbLoc := mustRedirect(t, c, "POST", issuer+"/login", url.Values{"authRequestID": {reqID}, "userID": {"user-alice"}})
+		appLoc := mustRedirect(t, c, "GET", abs(issuer, cbLoc), nil)
+		code := mustQuery(t, appLoc, "code")
+		form := url.Values{
+			"grant_type": {"authorization_code"}, "code": {code},
+			"redirect_uri": {redirect}, "client_id": {clientID}, "code_verifier": {v},
+		}
+		var tok map[string]any
+		if secret != "" {
+			tok = postFormAuth(t, issuer+"/oauth/token", clientID, secret, form)
+		} else {
+			tok = postForm(t, issuer+"/oauth/token", form)
+		}
+		at, _ := tok["access_token"].(string)
+		req, _ := http.NewRequest("GET", issuer+"/userinfo", nil)
+		req.Header.Set("Authorization", "Bearer "+at)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		var ui map[string]any
+		_ = json.NewDecoder(resp.Body).Decode(&ui)
+		return ui
+	}
+
+	// web-app + profile: both rules fire.
+	ui := userinfo("web-app", "web-secret", "openid profile")
+	if ui["tenant"] != "acme" {
+		t.Fatalf("web-app should get tenant=acme, got %v", ui["tenant"])
+	}
+	if ui["department"] != "engineering" {
+		t.Fatalf("profile scope should add department, got %v", ui["department"])
+	}
+
+	// spa-app without profile scope: neither rule fires.
+	ui2 := userinfo("spa-app", "", "openid")
+	if _, ok := ui2["tenant"]; ok {
+		t.Fatalf("spa-app must not get tenant claim, got %v", ui2["tenant"])
+	}
+	if _, ok := ui2["department"]; ok {
+		t.Fatalf("no profile scope must not add department, got %v", ui2["department"])
+	}
+}
+
 func TestROPCFlow(t *testing.T) {
 	issuer := startIDP(t)
 

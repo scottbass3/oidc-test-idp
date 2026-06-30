@@ -163,11 +163,14 @@ func (h *Handler) rotateKey(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) users(w http.ResponseWriter, r *http.Request) {
 	users, _ := h.store.DB().ListUsers()
-	data := map[string]any{"Title": "Users", "Users": users, "ClaimsJSON": "{}"}
+	data := map[string]any{"Title": "Users", "Users": users, "ClaimsJSON": "{}", "ConditionalJSON": "[]"}
 	if id := r.URL.Query().Get("edit"); id != "" {
 		if u, err := h.store.DB().GetUser(id); err == nil {
 			data["Edit"] = u
 			data["ClaimsJSON"] = prettyJSON(u.Claims)
+			if len(u.ConditionalClaims) > 0 {
+				data["ConditionalJSON"] = prettyJSON(u.ConditionalClaims)
+			}
 		}
 	}
 	h.render.HTML(w, http.StatusOK, "admin_users", data)
@@ -185,6 +188,13 @@ func (h *Handler) saveUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	var conditional []storage.ConditionalClaimRule
+	if raw := strings.TrimSpace(r.FormValue("conditional_claims")); raw != "" && raw != "[]" {
+		if err := json.Unmarshal([]byte(raw), &conditional); err != nil {
+			h.usersError(w, "Invalid conditional claims JSON: "+err.Error())
+			return
+		}
+	}
 	id := r.FormValue("id")
 	if id == "" {
 		id = uuid.NewString()
@@ -199,6 +209,7 @@ func (h *Handler) saveUser(w http.ResponseWriter, r *http.Request) {
 		LastName:          r.FormValue("last_name"),
 		PreferredLanguage: orDefault(r.FormValue("preferred_language"), "en"),
 		Claims:            claims,
+		ConditionalClaims: conditional,
 	}
 	if err := h.store.DB().SaveUser(u); err != nil {
 		h.usersError(w, err.Error())
@@ -210,7 +221,7 @@ func (h *Handler) saveUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) usersError(w http.ResponseWriter, msg string) {
 	users, _ := h.store.DB().ListUsers()
 	h.render.HTML(w, http.StatusBadRequest, "admin_users", map[string]any{
-		"Title": "Users", "Users": users, "Error": msg, "ClaimsJSON": "{}",
+		"Title": "Users", "Users": users, "Error": msg, "ClaimsJSON": "{}", "ConditionalJSON": "[]",
 	})
 }
 

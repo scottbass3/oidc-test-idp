@@ -454,9 +454,13 @@ func (s *Storage) SetIntrospectionFromToken(ctx context.Context, introspection *
 
 func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, userID, clientID string, scopes []string) (map[string]any, error) {
 	claims := map[string]any{}
-	// Merge per-user custom claims and per-client custom claims into JWT access tokens.
+	// Merge per-user static + conditional claims, then per-client custom claims,
+	// into JWT access tokens.
 	if u, err := s.db.GetUser(userID); err == nil {
 		for k, v := range u.Claims {
+			claims[k] = v
+		}
+		for k, v := range u.EvaluateConditionalClaims(clientID, scopes) {
 			claims[k] = v
 		}
 	}
@@ -503,8 +507,12 @@ func (s *Storage) setUserinfo(ctx context.Context, userInfo *oidc.UserInfo, user
 			userInfo.PhoneNumberVerified = oidc.Bool(u.PhoneVerified)
 		}
 	}
-	// Always assert arbitrary custom claims (per-user, then per-client overrides).
+	// Always assert arbitrary custom claims: per-user static, then per-user
+	// conditional (by client/scope), then per-client custom (most specific).
 	for k, v := range u.Claims {
+		userInfo.AppendClaims(k, v)
+	}
+	for k, v := range u.EvaluateConditionalClaims(clientID, scopes) {
 		userInfo.AppendClaims(k, v)
 	}
 	if c, err := s.db.GetClient(clientID); err == nil {

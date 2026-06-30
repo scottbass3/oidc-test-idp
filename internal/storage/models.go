@@ -103,4 +103,51 @@ type User struct {
 	PreferredLanguage string
 	IsAdmin           bool
 	Claims            map[string]any
+	ConditionalClaims []ConditionalClaimRule
+}
+
+// ConditionalClaimRule contributes extra claims when the requesting client and/or
+// the requested scopes match. An empty ClientID matches any client; an empty
+// Scopes list matches any request; otherwise every listed scope must be present.
+type ConditionalClaimRule struct {
+	ClientID string         `json:"client_id,omitempty"`
+	Scopes   []string       `json:"scopes,omitempty"`
+	Claims   map[string]any `json:"claims"`
+}
+
+// EvaluateConditionalClaims returns the merged claims from all rules matching the
+// given client and scopes. Later matching rules override earlier ones.
+func (u *User) EvaluateConditionalClaims(clientID string, scopes []string) map[string]any {
+	if len(u.ConditionalClaims) == 0 {
+		return nil
+	}
+	scopeSet := make(map[string]struct{}, len(scopes))
+	for _, s := range scopes {
+		scopeSet[s] = struct{}{}
+	}
+	var out map[string]any
+	for _, rule := range u.ConditionalClaims {
+		if rule.ClientID != "" && rule.ClientID != clientID {
+			continue
+		}
+		if !hasAllScopes(scopeSet, rule.Scopes) {
+			continue
+		}
+		if out == nil {
+			out = map[string]any{}
+		}
+		for k, v := range rule.Claims {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func hasAllScopes(have map[string]struct{}, want []string) bool {
+	for _, s := range want {
+		if _, ok := have[s]; !ok {
+			return false
+		}
+	}
+	return true
 }

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -140,23 +141,24 @@ func (db *DB) DeleteClient(id string) error {
 // --- Users ----------------------------------------------------------------
 
 const userColumns = `id, username, email, email_verified, phone, phone_verified,
-	first_name, last_name, preferred_language, is_admin, claims`
+	first_name, last_name, preferred_language, is_admin, claims, conditional_claims`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	var (
 		u                            User
 		emailVerified, phoneVerified int
 		isAdmin                      int
-		claims                       string
+		claims, conditional          string
 	)
 	if err := row.Scan(&u.ID, &u.Username, &u.Email, &emailVerified, &u.Phone,
-		&phoneVerified, &u.FirstName, &u.LastName, &u.PreferredLanguage, &isAdmin, &claims); err != nil {
+		&phoneVerified, &u.FirstName, &u.LastName, &u.PreferredLanguage, &isAdmin, &claims, &conditional); err != nil {
 		return nil, err
 	}
 	u.EmailVerified = emailVerified != 0
 	u.PhoneVerified = phoneVerified != 0
 	u.IsAdmin = isAdmin != 0
 	u.Claims = jsonObject(claims)
+	_ = json.Unmarshal([]byte(conditional), &u.ConditionalClaims)
 	return &u, nil
 }
 
@@ -200,17 +202,22 @@ func (db *DB) ListUsers() ([]*User, error) {
 
 // SaveUser inserts or replaces a user.
 func (db *DB) SaveUser(u *User) error {
+	conditional := "[]"
+	if len(u.ConditionalClaims) > 0 {
+		conditional = jsonMarshal(u.ConditionalClaims)
+	}
 	_, err := db.conn.Exec(`
 		INSERT INTO users (`+userColumns+`, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
 		ON CONFLICT(id) DO UPDATE SET
 			username=excluded.username, email=excluded.email,
 			email_verified=excluded.email_verified, phone=excluded.phone,
 			phone_verified=excluded.phone_verified, first_name=excluded.first_name,
 			last_name=excluded.last_name, preferred_language=excluded.preferred_language,
-			is_admin=excluded.is_admin, claims=excluded.claims, updated_at=datetime('now')`,
+			is_admin=excluded.is_admin, claims=excluded.claims,
+			conditional_claims=excluded.conditional_claims, updated_at=datetime('now')`,
 		u.ID, u.Username, u.Email, boolInt(u.EmailVerified), u.Phone, boolInt(u.PhoneVerified),
-		u.FirstName, u.LastName, u.PreferredLanguage, boolInt(u.IsAdmin), jsonMarshal(u.Claims),
+		u.FirstName, u.LastName, u.PreferredLanguage, boolInt(u.IsAdmin), jsonMarshal(u.Claims), conditional,
 	)
 	return err
 }

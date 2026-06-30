@@ -48,6 +48,8 @@
       <label><input type="checkbox" name="email_verified" {{if or (not .Edit) .Edit.EmailVerified}}checked{{end}} style="width:auto"> Email verified</label>
       <label>Custom claims (JSON)</label>
       <textarea name="claims" rows="5">{{.ClaimsJSON}}</textarea>
+      <label>Conditional claims (JSON array of rules; match by <code>client_id</code> and/or <code>scopes</code>)</label>
+      <textarea name="conditional_claims" rows="6" placeholder='[{"client_id":"web-app","scopes":["profile"],"claims":{"tenant":"acme"}}]'>{{.ConditionalJSON}}</textarea>
       <div style="height:.6rem"></div>
       <button type="submit">Save user</button>
       {{if .Edit}}<a class="btn secondary" href="/admin/users">Cancel</a>{{end}}

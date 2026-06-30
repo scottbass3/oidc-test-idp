@@ -65,7 +65,9 @@ End-user UI: `/login` (account selection), `/consent`, `/device` (device verific
 1. Open the admin UI, create a client matching your application's `client_id` / redirect URIs.
 2. Choose the access-token format (opaque or JWT) and lifetimes to match the target.
 3. Add custom claims per user (arbitrary JSON) and per client to reproduce the target's token
-   shape.
+   shape. For claims that differ by app or scope, add **conditional claims** to a user — a JSON
+   array of rules, each matching on `client_id` and/or `scopes` and contributing extra claims
+   (e.g. `[{"client_id":"web-app","claims":{"tenant":"acme"}},{"scopes":["profile"],"claims":{"department":"engineering"}}]`).
 4. To simulate failures, set a **forced error** (e.g. `invalid_grant`) and/or **latency** on the
    client. On the authorize endpoint the error is returned as a spec-compliant redirect
    (`?error=...&state=...`); on the token endpoint as a JSON error.

@@ -24,15 +24,16 @@ type File struct {
 
 // UserSeed describes a seeded login account.
 type UserSeed struct {
-	ID                string         `yaml:"id" json:"id"`
-	Username          string         `yaml:"username" json:"username"`
-	Email             string         `yaml:"email" json:"email"`
-	EmailVerified     *bool          `yaml:"email_verified" json:"email_verified"`
-	Phone             string         `yaml:"phone" json:"phone"`
-	FirstName         string         `yaml:"first_name" json:"first_name"`
-	LastName          string         `yaml:"last_name" json:"last_name"`
-	PreferredLanguage string         `yaml:"preferred_language" json:"preferred_language"`
-	Claims            map[string]any `yaml:"claims" json:"claims"`
+	ID                string                         `yaml:"id" json:"id"`
+	Username          string                         `yaml:"username" json:"username"`
+	Email             string                         `yaml:"email" json:"email"`
+	EmailVerified     *bool                          `yaml:"email_verified" json:"email_verified"`
+	Phone             string                         `yaml:"phone" json:"phone"`
+	FirstName         string                         `yaml:"first_name" json:"first_name"`
+	LastName          string                         `yaml:"last_name" json:"last_name"`
+	PreferredLanguage string                         `yaml:"preferred_language" json:"preferred_language"`
+	Claims            map[string]any                 `yaml:"claims" json:"claims"`
+	ConditionalClaims []storage.ConditionalClaimRule `yaml:"conditional_claims" json:"conditional_claims"`
 }
 
 // ClientSeed describes a seeded OAuth/OIDC client.
@@ -97,6 +98,7 @@ func apply(db *storage.DB, seed *File) error {
 			LastName:          u.LastName,
 			PreferredLanguage: orDefault(u.PreferredLanguage, "en"),
 			Claims:            u.Claims,
+			ConditionalClaims: u.ConditionalClaims,
 		}); err != nil {
 			return err
 		}
@@ -168,7 +170,11 @@ func defaultSeed() *File {
 		Users: []UserSeed{
 			{ID: "user-alice", Username: "alice", Email: "alice@example.com",
 				EmailVerified: &t, FirstName: "Alice", LastName: "Anderson",
-				Claims: map[string]any{"role": "admin", "groups": []string{"admins", "users"}}},
+				Claims: map[string]any{"role": "admin", "groups": []string{"admins", "users"}},
+				ConditionalClaims: []storage.ConditionalClaimRule{
+					{ClientID: "web-app", Claims: map[string]any{"tenant": "acme"}},
+					{Scopes: []string{"profile"}, Claims: map[string]any{"department": "engineering"}},
+				}},
 			{ID: "user-bob", Username: "bob", Email: "bob@example.com",
 				EmailVerified: &t, FirstName: "Bob", LastName: "Brown",
 				Claims: map[string]any{"role": "user", "groups": []string{"users"}}},
