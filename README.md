@@ -34,7 +34,7 @@ docker compose up --build
 Then:
 
 - Discovery: <http://localhost:9000/.well-known/openid-configuration>
-- Admin UI: <http://localhost:9000/admin> (default credentials `admin` / `admin`)
+- Admin UI: <http://localhost:9000/admin> (no login — open by design for a test tool)
 
 Or run locally:
 
@@ -53,8 +53,6 @@ The default seed creates two users (`alice`, `bob`) and four clients (`web-app`,
 | `IDP_ADDR`           | `:9000`                   | HTTP listen address.                            |
 | `IDP_DB_PATH`        | `/data/idp.db`            | SQLite database path inside the container.      |
 | `IDP_SEED_PATH`      | _(none)_                  | Seed file applied on first boot (empty DB).     |
-| `IDP_ADMIN_USER`     | `admin`                   | Admin UI Basic-auth username.                   |
-| `IDP_ADMIN_PASSWORD` | `admin`                   | Admin UI Basic-auth password.                   |
 | `IDP_ALLOW_INSECURE` | `true`                    | Allow an `http://` issuer (needed for testing). |
 
 ## Endpoints

@@ -8,8 +8,6 @@ services:
       IDP_ISSUER: http://localhost:9000
       IDP_ADDR: ":9000"
       IDP_DB_PATH: /data/idp.db
-      IDP_ADMIN_USER: admin
-      IDP_ADMIN_PASSWORD: admin
       # Optional: pre-populate from a mounted seed file on first boot.
       # IDP_SEED_PATH: /seed/seed.yaml
     volumes:

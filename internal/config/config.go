@@ -26,10 +26,6 @@ type Config struct {
 	// (when the database is empty).
 	SeedPath string
 
-	// AdminUser / AdminPassword protect the administration UI via HTTP Basic auth.
-	AdminUser     string
-	AdminPassword string
-
 	// AllowInsecure permits an http:// issuer (required for local/test usage).
 	AllowInsecure bool
 }
@@ -42,8 +38,6 @@ func Load() (*Config, error) {
 		Addr:          env("IDP_ADDR", ":9000"),
 		DBPath:        env("IDP_DB_PATH", "/data/idp.db"),
 		SeedPath:      env("IDP_SEED_PATH", ""),
-		AdminUser:     env("IDP_ADMIN_USER", "admin"),
-		AdminPassword: env("IDP_ADMIN_PASSWORD", "admin"),
 		AllowInsecure: envBool("IDP_ALLOW_INSECURE", true),
 	}
 	if c.Issuer == "" {

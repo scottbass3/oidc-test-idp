@@ -4,7 +4,6 @@ package admin
 
 import (
 	"context"
-	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -22,25 +21,23 @@ import (
 	"github.com/scottbass3/oidc-test-idp/internal/storage"
 )
 
-// Handler serves the admin UI.
+// Handler serves the admin UI. There is no authentication: this is a local test
+// tool and the admin UI is meant to be open.
 type Handler struct {
-	store    *storage.Storage
-	render   *render.Renderer
-	issuer   string
-	keyID    string
-	user     string
-	password string
-	reqlog   *reqlog.Log
+	store  *storage.Storage
+	render *render.Renderer
+	issuer string
+	keyID  string
+	reqlog *reqlog.Log
 }
 
 // New builds the admin handler.
-func New(store *storage.Storage, r *render.Renderer, issuer, keyID, user, password string, rlog *reqlog.Log) *Handler {
-	return &Handler{store: store, render: r, issuer: issuer, keyID: keyID, user: user, password: password, reqlog: rlog}
+func New(store *storage.Storage, r *render.Renderer, issuer, keyID string, rlog *reqlog.Log) *Handler {
+	return &Handler{store: store, render: r, issuer: issuer, keyID: keyID, reqlog: rlog}
 }
 
-// Routes mounts the admin endpoints behind HTTP Basic auth.
+// Routes mounts the admin endpoints.
 func (h *Handler) Routes(r chi.Router) {
-	r.Use(h.basicAuth)
 	r.Get("/", h.dashboard)
 	r.Get("/users", h.users)
 	r.Post("/users", h.saveUser)
@@ -62,20 +59,6 @@ func (h *Handler) logs(w http.ResponseWriter, r *http.Request) {
 	}
 	h.render.HTML(w, http.StatusOK, "admin_logs", map[string]any{
 		"Title": "Logs", "Entries": entries,
-	})
-}
-
-func (h *Handler) basicAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, p, ok := r.BasicAuth()
-		if !ok ||
-			subtle.ConstantTimeCompare([]byte(u), []byte(h.user)) != 1 ||
-			subtle.ConstantTimeCompare([]byte(p), []byte(h.password)) != 1 {
-			w.Header().Set("WWW-Authenticate", `Basic realm="idp-admin"`)
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
 	})
 }
 

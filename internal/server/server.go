@@ -25,8 +25,6 @@ import (
 // Options configure the HTTP server build.
 type Options struct {
 	Issuer        string
-	AdminUser     string
-	AdminPassword string
 	AllowInsecure bool
 }
 
@@ -45,7 +43,7 @@ func New(store *storage.Storage, logger *slog.Logger, opts Options) (http.Handle
 	rlog := reqlog.New(200)
 	issuerInterceptor := zoidc.NewIssuerInterceptor(provider.IssuerFromRequest)
 	authHandler := auth.New(store, r, zoidc.AuthCallbackURL(provider))
-	adminHandler := admin.New(store, r, opts.Issuer, signingKeyID(store), opts.AdminUser, opts.AdminPassword, rlog)
+	adminHandler := admin.New(store, r, opts.Issuer, signingKeyID(store), rlog)
 
 	router := chi.NewRouter()
 	router.Use(middleware.Recoverer)

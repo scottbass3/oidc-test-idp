@@ -62,8 +62,6 @@ func main() {
 
 	handler, err := server.New(store, logger, server.Options{
 		Issuer:        cfg.Issuer,
-		AdminUser:     cfg.AdminUser,
-		AdminPassword: cfg.AdminPassword,
 		AllowInsecure: cfg.AllowInsecure,
 	})
 	if err != nil {

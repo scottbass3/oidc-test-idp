@@ -57,8 +57,6 @@ func startIDPWithStore(t *testing.T) (string, *storage.Storage) {
 	}
 	handler, err := server.New(store, slog.New(slog.NewTextHandler(io.Discard, nil)), server.Options{
 		Issuer:        issuer,
-		AdminUser:     "admin",
-		AdminPassword: "admin",
 		AllowInsecure: true,
 	})
 	if err != nil {
