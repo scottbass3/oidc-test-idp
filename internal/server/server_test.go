@@ -470,6 +470,33 @@ func TestUserinfoWWWAuthenticate(t *testing.T) {
 	}
 }
 
+func TestCustomSubject(t *testing.T) {
+	issuer, store := startIDPWithStore(t)
+	u, err := store.DB().GetUser("user-alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.Subject = "auth0|abc123"
+	if err := store.DB().SaveUser(u); err != nil {
+		t.Fatal(err)
+	}
+
+	tok := codeFlow(t, issuer, "spa-app", "", "http://localhost:3000/callback", "openid profile")
+	idClaims := decodeJWTPart(t, tok["id_token"].(string), 1)
+	if idClaims["sub"] != "auth0|abc123" {
+		t.Fatalf("id_token sub should be custom subject, got %v", idClaims["sub"])
+	}
+
+	// userinfo (looked up by the custom subject) still resolves the user + claims.
+	ui := userinfoGet(t, issuer, tok["access_token"].(string))
+	if ui["sub"] != "auth0|abc123" {
+		t.Fatalf("userinfo sub should be custom subject, got %v", ui["sub"])
+	}
+	if ui["role"] != "admin" {
+		t.Fatalf("custom-subject user must still resolve claims, got %v", ui)
+	}
+}
+
 func TestROPCFlow(t *testing.T) {
 	issuer := startIDP(t)
 

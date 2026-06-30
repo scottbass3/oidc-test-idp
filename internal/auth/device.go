@@ -40,7 +40,12 @@ func (h *Handler) deviceApprove(w http.ResponseWriter, r *http.Request) {
 	userCode := r.FormValue("user_code")
 	switch r.FormValue("action") {
 	case "allow":
-		if err := h.store.CompleteDeviceAuthorization(r.Context(), userCode, r.FormValue("userID")); err != nil {
+		// The device token's subject is the user's custom subject (or row id).
+		subject := r.FormValue("userID")
+		if u, err := h.store.DB().GetUser(subject); err == nil {
+			subject = u.SubjectOrID()
+		}
+		if err := h.store.CompleteDeviceAuthorization(r.Context(), userCode, subject); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}

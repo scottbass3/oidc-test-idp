@@ -2,7 +2,8 @@
 # Mount it and point IDP_SEED_PATH at it (see docker-compose.yml).
 
 users:
-  - id: user-alice               # optional; a UUID is generated when omitted
+  - id: user-alice               # optional row id; a UUID is generated when omitted
+    subject: "auth0|abc123"      # optional sub claim; blank = use the row id
     username: alice
     email: alice@example.com
     email_verified: true

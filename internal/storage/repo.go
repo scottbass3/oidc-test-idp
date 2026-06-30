@@ -144,7 +144,7 @@ func (db *DB) DeleteClient(id string) error {
 
 // --- Users ----------------------------------------------------------------
 
-const userColumns = `id, username, email, email_verified, phone, phone_verified,
+const userColumns = `id, subject, username, email, email_verified, phone, phone_verified,
 	first_name, last_name, preferred_language, is_admin, claims, conditional_claims, acr, amr`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
@@ -154,7 +154,7 @@ func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 		isAdmin                      int
 		claims, conditional, amr     string
 	)
-	if err := row.Scan(&u.ID, &u.Username, &u.Email, &emailVerified, &u.Phone,
+	if err := row.Scan(&u.ID, &u.Subject, &u.Username, &u.Email, &emailVerified, &u.Phone,
 		&phoneVerified, &u.FirstName, &u.LastName, &u.PreferredLanguage, &isAdmin, &claims, &conditional,
 		&u.ACR, &amr); err != nil {
 		return nil, err
@@ -188,6 +188,23 @@ func (db *DB) GetUserByUsername(username string) (*User, error) {
 	return u, err
 }
 
+// GetUserBySubject resolves a user by custom subject, falling back to row id.
+// Used to map a token's sub back to the owning user.
+func (db *DB) GetUserBySubject(sub string) (*User, error) {
+	if sub == "" {
+		return nil, ErrNotFound
+	}
+	row := db.conn.QueryRow(`SELECT `+userColumns+` FROM users WHERE subject = ? LIMIT 1`, sub)
+	u, err := scanUser(row)
+	if err == nil {
+		return u, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return nil, err
+	}
+	return db.GetUser(sub)
+}
+
 // ListUsers returns all users ordered by username.
 func (db *DB) ListUsers() ([]*User, error) {
 	rows, err := db.conn.Query(`SELECT ` + userColumns + ` FROM users ORDER BY username`)
@@ -214,16 +231,16 @@ func (db *DB) SaveUser(u *User) error {
 	}
 	_, err := db.conn.Exec(`
 		INSERT INTO users (`+userColumns+`, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now'))
 		ON CONFLICT(id) DO UPDATE SET
-			username=excluded.username, email=excluded.email,
+			subject=excluded.subject, username=excluded.username, email=excluded.email,
 			email_verified=excluded.email_verified, phone=excluded.phone,
 			phone_verified=excluded.phone_verified, first_name=excluded.first_name,
 			last_name=excluded.last_name, preferred_language=excluded.preferred_language,
 			is_admin=excluded.is_admin, claims=excluded.claims,
 			conditional_claims=excluded.conditional_claims, acr=excluded.acr, amr=excluded.amr,
 			updated_at=datetime('now')`,
-		u.ID, u.Username, u.Email, boolInt(u.EmailVerified), u.Phone, boolInt(u.PhoneVerified),
+		u.ID, u.Subject, u.Username, u.Email, boolInt(u.EmailVerified), u.Phone, boolInt(u.PhoneVerified),
 		u.FirstName, u.LastName, u.PreferredLanguage, boolInt(u.IsAdmin), jsonMarshal(u.Claims), conditional,
 		u.ACR, jsonMarshal(u.AMR),
 	)

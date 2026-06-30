@@ -19,6 +19,8 @@ dependency. Authentication is passwordless: pick an account from a list and clic
   token signing algorithm when one client must match a specific target IdP.
 - **Per-user `acr` / `amr`** — assert authentication-context and methods-references claims in
   id_tokens to mock step-up / MFA. Standard `address` claim supported via the `address` scope.
+- **Custom `sub`** — pin a user's subject (e.g. `auth0|abc123`) independently of the row id to
+  match a target IdP's exact subject value.
 - **Live admin UI** — manage users, clients, signing keys (view + rotate), discovery overrides,
   and a recent-requests log from a browser; changes take effect immediately.
 - **Seedable** — pre-populate users and clients from a YAML/JSON file on first boot.

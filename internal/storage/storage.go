@@ -162,11 +162,13 @@ func (s *Storage) CompleteAuthRequest(id, userID string) error {
 	if err != nil {
 		return err
 	}
-	req.UserID = userID
 	req.done = true
 	req.authTime = time.Now()
-	// Stamp the selected user's ACR/AMR so they land in the id_token.
+	// The subject carried in the tokens is the user's custom subject (or row id).
+	// Also stamp the selected user's ACR/AMR so they land in the id_token.
+	req.UserID = userID
 	if u, uerr := s.db.GetUser(userID); uerr == nil {
+		req.UserID = u.SubjectOrID()
 		req.ACRValue = u.ACR
 		req.AMRValues = u.AMR
 	}
@@ -516,8 +518,8 @@ func (s *Storage) SetIntrospectionFromToken(ctx context.Context, introspection *
 func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, userID, clientID string, scopes []string) (map[string]any, error) {
 	claims := map[string]any{}
 	// Merge per-user static + conditional claims, then per-client custom claims,
-	// into JWT access tokens.
-	if u, err := s.db.GetUser(userID); err == nil {
+	// into JWT access tokens. userID here is the token subject.
+	if u, err := s.db.GetUserBySubject(userID); err == nil {
 		for k, v := range u.Claims {
 			claims[k] = v
 		}
@@ -537,7 +539,8 @@ func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, userID, client
 }
 
 func (s *Storage) setUserinfo(ctx context.Context, userInfo *oidc.UserInfo, userID, clientID string, scopes []string) error {
-	u, err := s.db.GetUser(userID)
+	// userID is the token subject; resolve to the owning user (by subject or id).
+	u, err := s.db.GetUserBySubject(userID)
 	if err != nil {
 		// No user row — e.g. a client_credentials token whose subject is the
 		// client itself. Still produce a valid (minimal) response: set the
@@ -553,7 +556,7 @@ func (s *Storage) setUserinfo(ctx context.Context, userInfo *oidc.UserInfo, user
 	for _, scope := range scopes {
 		switch scope {
 		case oidc.ScopeOpenID:
-			userInfo.Subject = u.ID
+			userInfo.Subject = u.SubjectOrID()
 		case oidc.ScopeEmail:
 			userInfo.Email = u.Email
 			userInfo.EmailVerified = oidc.Bool(u.EmailVerified)

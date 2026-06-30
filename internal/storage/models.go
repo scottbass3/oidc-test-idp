@@ -96,7 +96,9 @@ func asOPClient(c *Client) op.Client {
 
 // User is the persistent model of a login account.
 type User struct {
-	ID                string
+	ID string
+	// Subject overrides the sub claim. Empty means use ID.
+	Subject           string
 	Username          string
 	Email             string
 	EmailVerified     bool
@@ -111,6 +113,14 @@ type User struct {
 	// ACR/AMR asserted into id_tokens for this user (mock step-up / MFA).
 	ACR string
 	AMR []string
+}
+
+// SubjectOrID returns the custom subject if set, otherwise the row id.
+func (u *User) SubjectOrID() string {
+	if u.Subject != "" {
+		return u.Subject
+	}
+	return u.ID
 }
 
 // ConditionalClaimRule contributes extra claims when the requesting client and/or

@@ -202,6 +202,7 @@ func (h *Handler) saveUser(w http.ResponseWriter, r *http.Request) {
 	}
 	u := &storage.User{
 		ID:                id,
+		Subject:           strings.TrimSpace(r.FormValue("subject")),
 		Username:          r.FormValue("username"),
 		Email:             r.FormValue("email"),
 		EmailVerified:     r.FormValue("email_verified") != "",

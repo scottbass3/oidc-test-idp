@@ -25,6 +25,7 @@ type File struct {
 // UserSeed describes a seeded login account.
 type UserSeed struct {
 	ID                string                         `yaml:"id" json:"id"`
+	Subject           string                         `yaml:"subject" json:"subject"`
 	Username          string                         `yaml:"username" json:"username"`
 	Email             string                         `yaml:"email" json:"email"`
 	EmailVerified     *bool                          `yaml:"email_verified" json:"email_verified"`
@@ -93,6 +94,7 @@ func apply(db *storage.DB, seed *File) error {
 		}
 		if err := db.SaveUser(&storage.User{
 			ID:                id,
+			Subject:           u.Subject,
 			Username:          u.Username,
 			Email:             u.Email,
 			EmailVerified:     emailVerified,

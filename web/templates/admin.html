@@ -40,6 +40,7 @@
       <div class="grid2">
         <div><label>Username</label><input name="username" value="{{with .Edit}}{{.Username}}{{end}}" required></div>
         <div><label>Email</label><input name="email" value="{{with .Edit}}{{.Email}}{{end}}"></div>
+        <div><label>Subject (sub claim; blank = user id)</label><input name="subject" value="{{with .Edit}}{{.Subject}}{{end}}" placeholder="e.g. auth0|abc123"></div>
         <div><label>First name</label><input name="first_name" value="{{with .Edit}}{{.FirstName}}{{end}}"></div>
         <div><label>Last name</label><input name="last_name" value="{{with .Edit}}{{.LastName}}{{end}}"></div>
         <div><label>Phone</label><input name="phone" value="{{with .Edit}}{{.Phone}}{{end}}"></div>

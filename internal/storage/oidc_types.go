@@ -129,7 +129,7 @@ func NewAuthenticatedRequest(clientID string, user *User, scopes []string) *Auth
 		ID:            uuid.NewString(),
 		CreationDate:  now,
 		ApplicationID: clientID,
-		UserID:        user.ID,
+		UserID:        user.SubjectOrID(),
 		Scopes:        scopes,
 		ResponseType:  oidc.ResponseTypeCode,
 		ACRValue:      user.ACR,
